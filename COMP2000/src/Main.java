@@ -69,6 +69,12 @@ public class Main {
         world.addEntity(new Building(155, 125, 150, 100));
         world.addEntity(new Building(580, 490, 150, 100));
 
+        // Traps are added before the characters so they are drawn
+        // underneath anyone walking over them.
+        world.addEntity(new Trap(750, 300, 2));
+        world.addEntity(new Trap(350, 300, 2));
+        world.addEntity(new Trap(480, 460, 2));
+
         // Part B: people wander until they find and consume nearby food.
         world.addEntity(new Human(100, 400));
         world.addEntity(new Human(450, 200));

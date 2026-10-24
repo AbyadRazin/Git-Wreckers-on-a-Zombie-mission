@@ -20,7 +20,7 @@ public final class MainSpawnTest {
                 "A controlled random input should reproduce the initial layout");
         List<String> firstPositions = positions(first);
         List<String> differentPositions = positions(different);
-        check(firstPositions.size() == 6 && differentPositions.size() == 6,
+        check(firstPositions.size() == 8 && differentPositions.size() == 8,
                 "The initial mobile population should stay unchanged");
         for (int index = 0; index < firstPositions.size(); index++) {
             check(!firstPositions.get(index).equals(differentPositions.get(index)),

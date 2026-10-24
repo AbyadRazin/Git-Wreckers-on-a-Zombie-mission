@@ -98,6 +98,12 @@ public class Main {
                     randomCoordinate(random, world.getWidth(), MILITARY_SPAWN_MARGIN_X),
                     randomCoordinate(random, world.getHeight(), MILITARY_SPAWN_MARGIN_Y)));
         }
+        // Medics spawn like other civilians and look after the injured.
+        for (int index = 0; index < 2; index++) {
+            world.addEntity(new Medic(
+                    randomCoordinate(random, world.getWidth(), AGENT_SPAWN_MARGIN),
+                    randomCoordinate(random, world.getHeight(), AGENT_SPAWN_MARGIN)));
+        }
         world.publishStatistics();
     }
 

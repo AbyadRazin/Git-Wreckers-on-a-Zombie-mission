@@ -1,9 +1,15 @@
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.Stroke;
+import java.io.File;
+import java.net.URL;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.ImageIcon;
 
 /**
  * A stationary hazard that catches zombies that walk over it.
@@ -11,11 +17,16 @@ import java.util.stream.Collectors;
  * <p>Each zombie caught uses up one of the trap's limited uses. When
  * no uses are left the trap breaks and is removed from the world.
  * Humans and military units can walk over a trap safely.
+ *
+ * <p>Traps are drawn as a landmine. The picture is loaded once and shared by
+ * every trap; if it can't be found, traps fall back to a drawn red ring so
+ * the simulation still runs.
  */
 public class Trap extends Entity {
 
     private static final double TRIGGER_RADIUS = 18.0;
-    private static final int SIZE = 24;
+    private static final int SIZE = 28;
+    private static final Image SPRITE = loadSprite();
 
     private final int maxUses;
     private int remainingUses;
@@ -72,27 +83,64 @@ public class Trap extends Entity {
         }
     }
 
-    /** Draws a red ring with a cross that fades as the trap wears out. */
+    /**
+     * Draws the landmine with a faint red ring around it. Both fade as the
+     * trap wears out.
+     */
     @Override
     public void draw(Graphics2D graphics) {
         Color previousColor = graphics.getColor();
         Stroke previousStroke = graphics.getStroke();
+        Composite previousComposite = graphics.getComposite();
 
         int alpha = 90 + 165 * remainingUses / maxUses;
         int left = (int) getX() - SIZE / 2;
         int top = (int) getY() - SIZE / 2;
-        int inset = SIZE / 4;
 
-        graphics.setColor(new Color(170, 40, 40, alpha));
-        graphics.setStroke(new BasicStroke(2.0f));
-        graphics.drawOval(left, top, SIZE, SIZE);
-        graphics.drawLine(left + inset, top + inset,
-                left + SIZE - inset, top + SIZE - inset);
-        graphics.drawLine(left + SIZE - inset, top + inset,
-                left + inset, top + SIZE - inset);
+        if (SPRITE != null) {
+            graphics.setComposite(AlphaComposite.getInstance(
+                    AlphaComposite.SRC_OVER, alpha / 255f));
+            graphics.drawImage(SPRITE, left, top, SIZE, SIZE, null);
+            graphics.setComposite(previousComposite);
+
+            graphics.setColor(new Color(170, 40, 40, alpha / 2));
+            graphics.setStroke(new BasicStroke(1.5f));
+            graphics.drawOval(left - 3, top - 3, SIZE + 6, SIZE + 6);
+        } else {
+            // No picture available: a red ring with a cross.
+            int inset = SIZE / 4;
+            graphics.setColor(new Color(170, 40, 40, alpha));
+            graphics.setStroke(new BasicStroke(2.0f));
+            graphics.drawOval(left, top, SIZE, SIZE);
+            graphics.drawLine(left + inset, top + inset,
+                    left + SIZE - inset, top + SIZE - inset);
+            graphics.drawLine(left + SIZE - inset, top + inset,
+                    left + inset, top + SIZE - inset);
+        }
 
         // Put the shared graphics state back for whatever draws next.
         graphics.setColor(previousColor);
         graphics.setStroke(previousStroke);
+        graphics.setComposite(previousComposite);
+    }
+
+    /**
+     * Loads the landmine picture once for all traps, from the classpath or
+     * the source folder. Returns {@code null} if it can't be found, so traps
+     * draw a ring instead of crashing the simulation.
+     */
+    private static Image loadSprite() {
+        URL resource = Trap.class.getResource("/Trap.png");
+        if (resource != null) {
+            return new ImageIcon(resource).getImage();
+        }
+
+        for (String folder : new String[]{"src", "COMP2000/src"}) {
+            File file = new File(folder, "Trap.png");
+            if (file.isFile()) {
+                return new ImageIcon(file.getAbsolutePath()).getImage();
+            }
+        }
+        return null;
     }
 }

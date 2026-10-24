@@ -1,9 +1,13 @@
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import javax.swing.*;
 
 public class SimPanel extends JPanel {
@@ -15,6 +19,7 @@ public class SimPanel extends JPanel {
     private boolean started;
     private boolean paused;
     private int speedLevel;
+    private Consumer<Point2D> mapClickListener = point -> { };
 
     private static final int MIN_SPEED_LEVEL = 1;
     private static final int MAX_SPEED_LEVEL = 5;
@@ -52,6 +57,18 @@ public class SimPanel extends JPanel {
             backgroundImage = new ImageIcon(sourceAsset.getAbsolutePath()).getImage();
         }
         setupKeyBindings();
+
+        // Once the simulation has started, clicks on the map are handed to
+        // whoever is listening (for example, placing a trap).
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                if (started) {
+                    mapClickListener.accept(
+                            new Point2D.Double(event.getX(), event.getY()));
+                }
+            }
+        });
     }
     private void setupKeyBindings() {
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
@@ -143,6 +160,11 @@ public class SimPanel extends JPanel {
     private void decreaseSpeed() {
         speedLevel = Math.max(MIN_SPEED_LEVEL, speedLevel - 1);
         repaint();
+    }
+
+    /** Sets what happens when the map is clicked once the simulation has started. */
+    public void setMapClickListener(Consumer<Point2D> listener) {
+        mapClickListener = Objects.requireNonNull(listener, "Listener cannot be null");
     }
 
     public boolean isRunning() {

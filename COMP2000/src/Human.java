@@ -22,6 +22,7 @@ public class Human extends Entity {
     private static final int CHARACTER_WIDTH = 38;
     private static final int CHARACTER_HEIGHT = 54;
     private static final int TICKS_PER_WALK_FRAME = 8;
+    private static final String DEFAULT_SPRITE_FOLDER = "/HumanFoodAssets/";
 
     private final Random random = new Random();
     private double energy;
@@ -42,22 +43,32 @@ public class Human extends Entity {
     private Building shelter;
 
     public Human(double x, double y) {
+        this(x, y, DEFAULT_SPRITE_FOLDER);
+    }
+
+    /**
+     * Creates a human drawn with the sprites in {@code spriteFolder}, which
+     * must hold the same set of files as {@code HumanFoodAssets}. This lets a
+     * subclass such as {@link Medic} have its own look while reusing all of
+     * the walking animation code.
+     */
+    protected Human(double x, double y, String spriteFolder) {
         super(x, y);
         energy = MAX_ENERGY;
         frontWalkFrames = new Image[]{
-                loadImage("/HumanFoodAssets/HumanFrontWalk1.png"),
-                loadImage("/HumanFoodAssets/HumanFrontWalk2.png"),
-                loadImage("/HumanFoodAssets/HumanFrontWalk3.png"),
-                loadImage("/HumanFoodAssets/HumanFrontWalk4.png")
+                loadImage(spriteFolder + "HumanFrontWalk1.png"),
+                loadImage(spriteFolder + "HumanFrontWalk2.png"),
+                loadImage(spriteFolder + "HumanFrontWalk3.png"),
+                loadImage(spriteFolder + "HumanFrontWalk4.png")
         };
         sideWalkFrames = new Image[]{
-                loadImage("/HumanFoodAssets/HumanWalk1.png"),
-                loadImage("/HumanFoodAssets/HumanWalk2.png"),
-                loadImage("/HumanFoodAssets/HumanWalk3.png")
+                loadImage(spriteFolder + "HumanWalk1.png"),
+                loadImage(spriteFolder + "HumanWalk2.png"),
+                loadImage(spriteFolder + "HumanWalk3.png")
         };
-        frontIdleFrame = loadImage("/HumanFoodAssets/HumanFrontIdle.png");
-        sideIdleFrame = loadImage("/HumanFoodAssets/HumanSideIdle.png");
-        backFrame = loadImage("/HumanFoodAssets/HumanBack.png");
+        frontIdleFrame = loadImage(spriteFolder + "HumanFrontIdle.png");
+        sideIdleFrame = loadImage(spriteFolder + "HumanSideIdle.png");
+        backFrame = loadImage(spriteFolder + "HumanBack.png");
         walkFrame = 0;
         chooseNewWanderDirection();
     }
@@ -118,6 +129,12 @@ public class Human extends Entity {
         deactivate();
     }
 
+    /**
+     * Runs one tick of this human's life. The order is fixed: energy drains
+     * first (and a starving human dies), then {@link #behave(World)} decides
+     * what to do. Subclasses such as {@link Medic} customise only the
+     * behaviour step, so every kind of human gets hungry in the same way.
+     */
     @Override
     public void update(World world) {
         energy -= ENERGY_LOSS_PER_TICK;
@@ -127,6 +144,14 @@ public class Human extends Entity {
             return;
         }
 
+        behave(world);
+    }
+
+    /**
+     * Ordinary survival behaviour for one tick: shelter while healthy, then
+     * leave shelter to look for food once hungry, wandering if none is near.
+     */
+    protected void behave(World world) {
         // Sheltering protects the human, but food scarcity eventually forces
         // them back into the world where normal food-seeking can resume.
         if (hidden) {
@@ -159,6 +184,23 @@ public class Human extends Entity {
         } catch (TargetNotFoundException exception) {
             wander(world);
         }
+    }
+
+    /**
+     * Restores energy from an outside source such as a medic, without going
+     * above the maximum.
+     *
+     * @param amount how much energy to restore
+     * @throws IllegalArgumentException if {@code amount} is not positive
+     */
+    public void restoreEnergy(double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(
+                    "Restored energy must be positive"
+            );
+        }
+
+        energy = Math.min(MAX_ENERGY, energy + amount);
     }
 
     /** Consumes an active food item when close enough to it. */

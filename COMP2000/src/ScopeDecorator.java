@@ -1,7 +1,7 @@
 /** Longer reach in exchange for slower, more careful shots. */
 public class ScopeDecorator extends WeaponDecorator {
 
-    private static final double EXTRA_RANGE = 70.0;
+    private static final double EXTRA_RANGE = 60.0;
     private static final int EXTRA_FIRE_INTERVAL_TICKS = 3;
 
     public ScopeDecorator(Weapon wrapped) {

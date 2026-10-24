@@ -104,13 +104,13 @@ public final class WorldObserverTest {
         populate.setAccessible(true);
         populate.invoke(null, world);
         check(samples.size() == 1, "Setup should publish one complete scenario");
-        checkCounts(samples.get(0), 0, 3, 2, 1, 3);
+        checkCounts(samples.get(0), 0, 3, 2, 3, 3);
         world.update();
         world.reset();
         check(samples.size() == 2, "Clearing before repopulation should not publish an empty scenario");
         populate.invoke(null, world);
         check(samples.size() == 3, "Subscriptions should survive reset without duplication");
-        checkCounts(samples.get(2), 0, 3, 2, 1, 3);
+        checkCounts(samples.get(2), 0, 3, 2, 3, 3);
     }
 
     private static void testFailingObserverDoesNotHideTheCompletedTick() {

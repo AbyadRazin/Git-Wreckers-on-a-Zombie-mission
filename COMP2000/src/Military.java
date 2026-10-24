@@ -37,7 +37,8 @@ import javax.swing.ImageIcon;
  */
 public class Military extends Human {
 
-    private static final double DETECTION_RADIUS = 260.0;
+    // 40% shorter sight than the original 260, so zombies get closer before soldiers react.
+    private static final double DETECTION_RADIUS = 156.0;
     private static final double SPEED = 2.4;
     private static final int MUZZLE_FLASH_TICKS = 3;
     private static final int CHARACTER_WIDTH = 38;

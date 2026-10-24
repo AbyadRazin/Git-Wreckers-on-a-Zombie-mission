@@ -187,8 +187,9 @@ public final class MilitaryPatternsTest {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
         Zombie nearToSoldier = new Zombie(300, 350);
-        Zombie nearToCivilian = new Zombie(450, 300);
-        Human civilian = new Human(470, 300);
+        // Kept inside the soldier's reduced 156-unit sight.
+        Zombie nearToCivilian = new Zombie(420, 300);
+        Human civilian = new Human(440, 300);
         world.addEntity(soldier);
         world.addEntity(nearToSoldier);
         world.addEntity(nearToCivilian);

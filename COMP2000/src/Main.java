@@ -2,9 +2,15 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.util.Random;
 
 
 public class Main {
+
+    private static final double AGENT_SPAWN_MARGIN = 80;
+    // Reserve the default patrol's 160/110-unit excursions and sprite clearance.
+    private static final double MILITARY_SPAWN_MARGIN_X = 180;
+    private static final double MILITARY_SPAWN_MARGIN_Y = 140;
 
     public static void main(String[] args) {
 
@@ -66,6 +72,10 @@ public class Main {
     }
 
     private static void populateWorld(World world) {
+        populateWorld(world, new Random());
+    }
+
+    private static void populateWorld(World world, Random random) {
         world.addEntity(new Building(155, 125, 150, 100));
         world.addEntity(new Building(580, 490, 150, 100));
 
@@ -75,18 +85,29 @@ public class Main {
         world.addEntity(new Trap(350, 300, 2));
         world.addEntity(new Trap(480, 460, 2));
 
-        // Part B: people wander until they find and consume nearby food.
-        world.addEntity(new Human(100, 400));
-        world.addEntity(new Human(450, 200));
-        world.addEntity(new Human(800, 350));
+        // Vary initial encounters without changing the population sizes.
+        for (int index = 0; index < 3; index++) {
+            world.addEntity(new Human(
+                    randomCoordinate(random, world.getWidth(), AGENT_SPAWN_MARGIN),
+                    randomCoordinate(random, world.getHeight(), AGENT_SPAWN_MARGIN)));
+        }
 
         world.addEntity(new Food(250, 300, 45));
         world.addEntity(new Food(500, 600, 45));
         world.addEntity(new Food(850, 150, 45));
 
-        world.addEntity(new Zombie(700, 250));
-        world.addEntity(new Military(500, 375));
-        world.addEntity(new Military(200, 620));
+        world.addEntity(new Zombie(
+                randomCoordinate(random, world.getWidth(), AGENT_SPAWN_MARGIN),
+                randomCoordinate(random, world.getHeight(), AGENT_SPAWN_MARGIN)));
+        for (int index = 0; index < 2; index++) {
+            world.addEntity(new Military(
+                    randomCoordinate(random, world.getWidth(), MILITARY_SPAWN_MARGIN_X),
+                    randomCoordinate(random, world.getHeight(), MILITARY_SPAWN_MARGIN_Y)));
+        }
         world.publishStatistics();
+    }
+
+    private static double randomCoordinate(Random random, int dimension, double margin) {
+        return margin + random.nextDouble() * (dimension - 2 * margin);
     }
 }

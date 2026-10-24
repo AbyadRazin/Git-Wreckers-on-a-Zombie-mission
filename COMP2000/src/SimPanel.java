@@ -224,8 +224,10 @@ public class SimPanel extends JPanel {
             int militaryCount = countActiveEntitiesNamed("Military");
             int foodCount = countActiveEntitiesNamed("Food");
 
+            BattleReport battle = BattleReport.of(world.getEntities());
+
             graphics2D.setColor(new Color(0, 0, 0, 170));
-            graphics2D.fillRoundRect(15, 15, 220, 116, 12, 12);
+            graphics2D.fillRoundRect(15, 15, 220, 136, 12, 12);
 
             graphics2D.setColor(Color.WHITE);
             graphics2D.drawString("Tick: " + world.getTick(), 25, 38);
@@ -236,6 +238,9 @@ public class SimPanel extends JPanel {
             graphics2D.drawString("Speed: " + getSpeedLabel(), 115, 78);
             graphics2D.setColor(Color.LIGHT_GRAY);
             graphics2D.drawString("+/- speed", 115, 98);
+            graphics2D.setColor(Color.WHITE);
+            graphics2D.drawString("Kills: " + battle.getTotalKills(), 25, 118);
+            graphics2D.drawString("Best: " + battle.getBestKills(), 115, 118);
 
         } finally {
             graphics2D.dispose();

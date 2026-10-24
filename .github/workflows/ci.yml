@@ -39,3 +39,4 @@ jobs:
           javac -cp out -d out test/*.java
           java -ea -cp "out:src" HumanFoodTest
           java -ea -Djava.awt.headless=true -cp "out:src" WorldTest
+          java -ea -Djava.awt.headless=true -cp "out:src" MainSpawnTest

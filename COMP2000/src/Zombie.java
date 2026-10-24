@@ -86,7 +86,12 @@ public class Zombie extends Entity {
         chase(world);
 
         if (distanceTo(target) <= INFECT_DISTANCE) {
-            target.infect();
+            Human victim = target;
+            victim.infect();
+            // An infected civilian rises as a new zombie where they fell.
+            if (!victim.isActive()) {
+                world.addEntity(new Zombie(victim.getX(), victim.getY()));
+            }
         }
     }
 

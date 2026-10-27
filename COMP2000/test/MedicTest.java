@@ -9,6 +9,9 @@ public final class MedicTest {
         testLeavesShelterToHelp();
         testStillGetsHungryWhileHealing();
         testTiredMedicStopsHealing();
+        testStaysOnDutyUntilHungry();
+        testSkipsPatientNearZombie();
+        testBacksOffWhenZombieIsClose();
         testRestoreEnergyIsCappedAndValidated();
         System.out.println("MedicTest passed");
     }
@@ -105,7 +108,7 @@ public final class MedicTest {
     private static void testTiredMedicStopsHealing() {
         World world = new World(1000, 750);
         Medic medic = new Medic(100, 100);
-        drainTo(medic, 55);
+        drainTo(medic, 34);
         medic.setPosition(100, 100);
         Human patient = injured(110, 100, 20);
         world.addEntity(medic);
@@ -116,7 +119,57 @@ public final class MedicTest {
             medic.update(world);
         }
 
-        check(patient.getEnergy() == before, "a tired medic looks after itself instead");
+        check(patient.getEnergy() == before, "a hungry medic looks after itself instead");
+    }
+
+    private static void testStaysOnDutyUntilHungry() {
+        World world = new World(1000, 750);
+        Medic medic = new Medic(100, 100);
+        drainTo(medic, 50);
+        medic.setPosition(100, 100);
+        Human patient = injured(110, 100, 20);
+        world.addEntity(medic);
+        world.addEntity(patient);
+        double before = patient.getEnergy();
+
+        medic.update(world);
+
+        check(Math.abs(patient.getEnergy() - (before + 30)) < TOLERANCE,
+                "a medic with energy to spare still helps");
+    }
+
+    private static void testSkipsPatientNearZombie() {
+        World world = new World(1000, 750);
+        Medic medic = new Medic(100, 100);
+        Human patient = injured(300, 100, 20);
+        world.addEntity(medic);
+        world.addEntity(patient);
+        world.addEntity(new Zombie(360, 100));
+        double before = patient.getEnergy();
+        double startDistance = medic.distanceTo(patient);
+
+        for (int tick = 0; tick < 30; tick++) {
+            medic.update(world);
+        }
+
+        check(patient.getEnergy() == before, "a patient with a zombie next to them is not healed");
+        check(medic.distanceTo(patient) >= startDistance - 1,
+                "the medic doesn't walk towards the zombie");
+    }
+
+    private static void testBacksOffWhenZombieIsClose() {
+        World world = new World(1000, 750);
+        Medic medic = new Medic(100, 100);
+        // Close enough to heal; the zombie is near the medic but not the patient.
+        Human patient = injured(100, 85, 20);
+        world.addEntity(medic);
+        world.addEntity(patient);
+        world.addEntity(new Zombie(100, 195));
+        double before = patient.getEnergy();
+
+        medic.update(world);
+
+        check(patient.getEnergy() == before, "a medic with a zombie close by stops helping");
     }
 
     private static void testRestoreEnergyIsCappedAndValidated() {

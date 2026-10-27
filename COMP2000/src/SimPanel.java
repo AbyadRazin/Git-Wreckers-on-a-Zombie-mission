@@ -20,6 +20,8 @@ public class SimPanel extends JPanel {
     private boolean paused;
     private int speedLevel;
     private Consumer<Point2D> mapClickListener = point -> { };
+    private TrapReport trapReport = new TrapReport();
+    private TrapBlasts trapBlasts = new TrapBlasts();
 
     private static final int MIN_SPEED_LEVEL = 1;
     private static final int MAX_SPEED_LEVEL = 5;
@@ -167,6 +169,16 @@ public class SimPanel extends JPanel {
         mapClickListener = Objects.requireNonNull(listener, "Listener cannot be null");
     }
 
+    /** Shows this report's trap catches in the HUD. */
+    public void showTrapReport(TrapReport report) {
+        trapReport = Objects.requireNonNull(report, "Report cannot be null");
+    }
+
+    /** Draws these blasts over the map whenever a trap goes off. */
+    public void showTrapBlasts(TrapBlasts blasts) {
+        trapBlasts = Objects.requireNonNull(blasts, "Blasts cannot be null");
+    }
+
     public boolean isRunning() {
         return started && !paused;
     }
@@ -210,6 +222,7 @@ public class SimPanel extends JPanel {
                     entity.draw(graphics2D);
                 }
             }
+            trapBlasts.draw(graphics2D);
 
             // Draw each building's occupancy on top
             graphics2D.setFont(
@@ -249,7 +262,7 @@ public class SimPanel extends JPanel {
             BattleReport battle = BattleReport.of(world.getEntities());
 
             graphics2D.setColor(new Color(0, 0, 0, 170));
-            graphics2D.fillRoundRect(15, 15, 220, 136, 12, 12);
+            graphics2D.fillRoundRect(15, 15, 220, 156, 12, 12);
 
             graphics2D.setColor(Color.WHITE);
             graphics2D.drawString("Tick: " + world.getTick(), 25, 38);
@@ -263,6 +276,7 @@ public class SimPanel extends JPanel {
             graphics2D.setColor(Color.WHITE);
             graphics2D.drawString("Kills: " + battle.getTotalKills(), 25, 118);
             graphics2D.drawString("Best: " + battle.getBestKills(), 115, 118);
+            graphics2D.drawString("Trap catches: " + trapReport.getCatches(), 25, 138);
 
         } finally {
             graphics2D.dispose();

@@ -79,10 +79,13 @@ public final class Experiment {
     /** One complete run. Everything it touches is created here, on this thread. */
     private RunOutcome simulate(Scenario scenario) {
         World world = scenario.createWorld();
+        // Each run counts its own catches, so no report is shared between threads.
+        TrapReport trapReport = new TrapReport();
+        Trap.listenToAll(world, trapReport);
         for (int tick = 0; tick < ticks; tick++) {
             world.update();
         }
-        return RunOutcome.of(world);
+        return RunOutcome.of(world, trapReport.getCatches());
     }
 
     public static void main(String[] args) {
@@ -106,18 +109,19 @@ public final class Experiment {
         Experiment experiment = new Experiment(runs, ticks);
         System.out.printf("%d runs per scenario, %d ticks each, %d CPU cores%n%n",
                 runs, ticks, Runtime.getRuntime().availableProcessors());
-        System.out.printf("%-22s %18s %12s %18s%n",
-                "Scenario", "Avg survivors", "Avg zombies", "Zombie-free at end");
+        System.out.printf("%-22s %18s %12s %13s %18s%n",
+                "Scenario", "Avg survivors", "Avg zombies", "Trap catches", "Zombie-free at end");
 
         for (Scenario scenario : Scenario.values()) {
             long start = System.nanoTime();
             ExperimentSummary summary = experiment.run(scenario);
             double seconds = (System.nanoTime() - start) / 1e9;
-            System.out.printf("%-22s %10.2f +/- %.2f %12.2f %17.0f%%   (%.1fs)%n",
+            System.out.printf("%-22s %10.2f +/- %.2f %12.2f %13.2f %17.0f%%   (%.1fs)%n",
                     scenario.getLabel(),
                     summary.getAverageSurvivors(),
                     summary.getSurvivorsStandardError(),
                     summary.getAverageZombies(),
+                    summary.getAverageTrapCatches(),
                     summary.getContainedRate() * 100,
                     seconds);
         }

@@ -16,14 +16,17 @@ public final class ExperimentSummary {
     private final double averageSurvivors;
     private final double survivorsStandardError;
     private final double averageZombies;
+    private final double averageTrapCatches;
     private final double containedRate;
 
     private ExperimentSummary(long runs, double averageSurvivors, double survivorsStandardError,
-                              double averageZombies, double containedRate) {
+                              double averageZombies, double averageTrapCatches,
+                              double containedRate) {
         this.runs = runs;
         this.averageSurvivors = averageSurvivors;
         this.survivorsStandardError = survivorsStandardError;
         this.averageZombies = averageZombies;
+        this.averageTrapCatches = averageTrapCatches;
         this.containedRate = containedRate;
     }
 
@@ -57,6 +60,11 @@ public final class ExperimentSummary {
         return averageZombies;
     }
 
+    /** Average number of zombies caught by traps per run. */
+    public double getAverageTrapCatches() {
+        return averageTrapCatches;
+    }
+
     /** Fraction of runs (0 to 1) that ended with no zombies left. */
     public double getContainedRate() {
         return containedRate;
@@ -68,6 +76,7 @@ public final class ExperimentSummary {
         private long survivors;
         private long survivorsSquared;
         private long zombies;
+        private long trapCatches;
         private long contained;
 
         void add(RunOutcome outcome) {
@@ -75,6 +84,7 @@ public final class ExperimentSummary {
             survivors += outcome.getSurvivors();
             survivorsSquared += outcome.getSurvivors() * outcome.getSurvivors();
             zombies += outcome.getZombies();
+            trapCatches += outcome.getTrapCatches();
             if (outcome.outbreakContained()) {
                 contained++;
             }
@@ -85,13 +95,14 @@ public final class ExperimentSummary {
             survivors += other.survivors;
             survivorsSquared += other.survivorsSquared;
             zombies += other.zombies;
+            trapCatches += other.trapCatches;
             contained += other.contained;
             return this;
         }
 
         ExperimentSummary finish() {
             if (runs == 0) {
-                return new ExperimentSummary(0, 0, 0, 0, 0);
+                return new ExperimentSummary(0, 0, 0, 0, 0, 0);
             }
             double mean = (double) survivors / runs;
             double standardError = 0;
@@ -101,6 +112,7 @@ public final class ExperimentSummary {
             }
             return new ExperimentSummary(runs, mean, standardError,
                     (double) zombies / runs,
+                    (double) trapCatches / runs,
                     (double) contained / runs);
         }
     }

@@ -40,22 +40,36 @@ public class Main {
 
     private static void startSimulation() {
         World world = new World(1000,750);
+        // Both listen to every trap: one counts catches for the HUD, the
+        // other flashes a blast on the map where the trap went off.
+        TrapReport trapReport = new TrapReport();
+        TrapBlasts trapBlasts = new TrapBlasts();
         populateWorld(world);
+        listenToTraps(world, trapReport, trapBlasts);
         TrapPlacer trapPlacer = new TrapPlacer(world, PLACEABLE_TRAPS);
 
         SimPanel simPanel = new SimPanel(world, () -> {
             world.reset();
             populateWorld(world);
+            trapReport.reset();
+            trapBlasts.clear();
+            listenToTraps(world, trapReport, trapBlasts);
             trapPlacer.reset();
         });
+        simPanel.showTrapReport(trapReport);
+        simPanel.showTrapBlasts(trapBlasts);
 
         // Place a trap by pressing the button, then clicking on the map.
         JButton trapButton = new JButton();
         // Leave keyboard focus with the simulation so R, P and +/- keep working.
         trapButton.setFocusable(false);
         trapButton.addActionListener(event -> trapPlacer.toggleArmed());
-        simPanel.setMapClickListener(
-                point -> trapPlacer.placeAt(point.getX(), point.getY()));
+        simPanel.setMapClickListener(point -> {
+            if (trapPlacer.placeAt(point.getX(), point.getY())) {
+                // Hand-placed traps need the same listeners as the starting ones.
+                listenToTraps(world, trapReport, trapBlasts);
+            }
+        });
         trapPlacer.setOnChange(() -> showTrapState(trapButton, simPanel, trapPlacer));
         showTrapState(trapButton, simPanel, trapPlacer);
 
@@ -94,6 +108,13 @@ public class Main {
 
         updateTimer.start();
         renderTimer.start();
+    }
+
+    /** Subscribes each listener to every trap in the world (traps already listened to are skipped). */
+    private static void listenToTraps(World world, TrapListener... listeners) {
+        for (TrapListener listener : listeners) {
+            Trap.listenToAll(world, listener);
+        }
     }
 
     /** Updates the trap button's label and the map cursor to match the placer. */

@@ -10,6 +10,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.stream.Collectors;
 import javax.swing.ImageIcon;
 
@@ -31,6 +32,9 @@ import javax.swing.ImageIcon;
 public class Trap extends Entity {
 
     private static final double TRIGGER_RADIUS = 18.0;
+    private static final double MIN_ENTRANCE_DISTANCE = 15.0;
+    private static final double MAX_ENTRANCE_DISTANCE = 55.0;
+    private static final int MAX_PLACEMENT_ATTEMPTS = 1000;
     private static final int SIZE = 28;
     private static final Image SPRITE = loadSprite();
 
@@ -57,6 +61,53 @@ public class Trap extends Entity {
 
         this.maxUses = maxUses;
         this.remainingUses = maxUses;
+    }
+
+    /**
+     * Creates a trap at a random spot near a building's entrance, outside
+     * every building and inside the world.
+     *
+     * <p>Survivors run to building entrances to shelter and zombies follow
+     * them, so that is where zombies spend most of their time and where a
+     * trap is most likely to be stepped on. The trap goes in front of the
+     * door, 15 to 55 units away.
+     *
+     * @param world    the world the trap is for, used to avoid buildings and edges
+     * @param building the building whose entrance the trap guards
+     * @param random   where the random position comes from
+     * @param maxUses  how many zombies the trap can catch before it breaks
+     * @throws IllegalStateException if no free spot near the entrance can be found
+     */
+    public static Trap nearEntrance(World world, Building building, Random random, int maxUses) {
+        Objects.requireNonNull(world, "World cannot be null");
+        Objects.requireNonNull(building, "Building cannot be null");
+        Objects.requireNonNull(random, "Random cannot be null");
+
+        // Entrances are on the bottom edge, so try the half-circle in front
+        // of the door; the building itself is behind it.
+        for (int attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt++) {
+            double angle = random.nextDouble() * Math.PI;
+            double distance = MIN_ENTRANCE_DISTANCE
+                    + random.nextDouble() * (MAX_ENTRANCE_DISTANCE - MIN_ENTRANCE_DISTANCE);
+            double x = building.getEntranceX() + Math.cos(angle) * distance;
+            double y = building.getEntranceY() + Math.sin(angle) * distance;
+
+            if (isFreeSpot(world, x, y)) {
+                return new Trap(x, y, maxUses);
+            }
+        }
+        throw new IllegalStateException("No free spot for a trap near the building entrance");
+    }
+
+    /** Inside the world (with room for the picture) and not on any building. */
+    private static boolean isFreeSpot(World world, double x, double y) {
+        double margin = SIZE / 2.0;
+        boolean insideWorld = x >= margin && x <= world.getWidth() - margin
+                && y >= margin && y <= world.getHeight() - margin;
+        return insideWorld && world.getEntities().stream()
+                .filter(Building.class::isInstance)
+                .map(Building.class::cast)
+                .noneMatch(building -> building.containsPoint(x, y));
     }
 
     public int getMaxUses() {

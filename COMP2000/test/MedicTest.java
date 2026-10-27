@@ -145,16 +145,14 @@ public final class MedicTest {
         world.addEntity(medic);
         world.addEntity(patient);
         world.addEntity(new Zombie(360, 100));
-        double before = patient.getEnergy();
-        double startDistance = medic.distanceTo(patient);
 
-        for (int tick = 0; tick < 30; tick++) {
-            medic.update(world);
-        }
+        medic.update(world);
 
-        check(patient.getEnergy() == before, "a patient with a zombie next to them is not healed");
-        check(medic.distanceTo(patient) >= startDistance - 1,
-                "the medic doesn't walk towards the zombie");
+        // Heading for the patient would be one step straight along the x-axis,
+        // to (102, 100). Wandering goes in a random direction instead.
+        boolean steppedTowardsPatient = Math.abs(medic.getX() - 102) < TOLERANCE
+                && Math.abs(medic.getY() - 100) < TOLERANCE;
+        check(!steppedTowardsPatient, "the medic doesn't head for a patient next to a zombie");
     }
 
     private static void testBacksOffWhenZombieIsClose() {

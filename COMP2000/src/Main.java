@@ -7,6 +7,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.util.List;
 import java.util.Random;
 
 
@@ -20,6 +21,8 @@ public class Main {
     private static final int STARTING_ZOMBIES = 3;
     // Extra traps the viewer can place by hand each run.
     private static final int PLACEABLE_TRAPS = 3;
+    private static final int STARTING_TRAPS = 3;
+    private static final int TRAP_USES = 2;
 
     public static void main(String[] args) {
 
@@ -140,11 +143,18 @@ public class Main {
         world.addEntity(new Building(155, 125, 150, 100));
         world.addEntity(new Building(580, 490, 150, 100));
 
-        // Traps are added before the characters so they are drawn
+        // Traps go at random spots near the building entrances, shared out
+        // between the buildings: survivors run there for shelter and zombies
+        // follow them. They are added before the characters so they are drawn
         // underneath anyone walking over them.
-        world.addEntity(new Trap(750, 300, 2));
-        world.addEntity(new Trap(350, 300, 2));
-        world.addEntity(new Trap(480, 460, 2));
+        List<Building> buildings = world.getEntities().stream()
+                .filter(Building.class::isInstance)
+                .map(Building.class::cast)
+                .toList();
+        for (int index = 0; index < STARTING_TRAPS; index++) {
+            Building building = buildings.get(index % buildings.size());
+            world.addEntity(Trap.nearEntrance(world, building, random, TRAP_USES));
+        }
 
         // Vary initial encounters without changing the population sizes.
         for (int index = 0; index < 3; index++) {

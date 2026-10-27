@@ -19,12 +19,13 @@ public final class ExperimentTest {
 
     private static void testSummaryAverages() {
         ExperimentSummary summary = List.of(
-                        new RunOutcome(2, 0), new RunOutcome(4, 3), new RunOutcome(6, 0))
+                        new RunOutcome(2, 0, 1), new RunOutcome(4, 3, 0), new RunOutcome(6, 0, 5))
                 .stream()
                 .collect(ExperimentSummary.collector());
         check(summary.getRuns() == 3, "counts every run");
         check(close(summary.getAverageSurvivors(), 4), "average survivors");
         check(close(summary.getAverageZombies(), 1), "average zombies");
+        check(close(summary.getAverageTrapCatches(), 2), "average trap catches");
         check(close(summary.getContainedRate(), 2.0 / 3), "two of three runs zombie-free");
         // Sample standard deviation of 2, 4, 6 is 2, so the standard error is 2 / sqrt(3).
         check(close(summary.getSurvivorsStandardError(), 2 / Math.sqrt(3)), "standard error");
@@ -32,7 +33,7 @@ public final class ExperimentTest {
 
     private static void testParallelMatchesSequential() {
         List<RunOutcome> outcomes = IntStream.range(0, 10_000)
-                .mapToObj(index -> new RunOutcome(index % 13, index % 5))
+                .mapToObj(index -> new RunOutcome(index % 13, index % 5, index % 7))
                 .collect(Collectors.toList());
         ExperimentSummary sequential = outcomes.stream().collect(ExperimentSummary.collector());
         ExperimentSummary parallel = outcomes.parallelStream().collect(ExperimentSummary.collector());
@@ -40,6 +41,8 @@ public final class ExperimentTest {
         check(close(parallel.getAverageSurvivors(), sequential.getAverageSurvivors()), "same survivors");
         check(close(parallel.getAverageZombies(), sequential.getAverageZombies()), "same zombies");
         check(close(parallel.getContainedRate(), sequential.getContainedRate()), "same contained rate");
+        check(close(parallel.getAverageTrapCatches(), sequential.getAverageTrapCatches()),
+                "same trap catches");
         check(close(parallel.getSurvivorsStandardError(), sequential.getSurvivorsStandardError()),
                 "same standard error");
     }
@@ -60,9 +63,10 @@ public final class ExperimentTest {
         gone.deactivate();
         world.addEntity(gone);
 
-        RunOutcome outcome = RunOutcome.of(world);
+        RunOutcome outcome = RunOutcome.of(world, 4);
         check(outcome.getSurvivors() == 2, "medics, soldiers and inactive humans are not survivors");
         check(outcome.getZombies() == 1 && !outcome.outbreakContained(), "one zombie left");
+        check(outcome.getTrapCatches() == 4, "keeps the trap catches it was given");
     }
 
     private static void testScenariosKeepTheRightEntities() {
@@ -87,7 +91,8 @@ public final class ExperimentTest {
     private static void testInvalidArguments() {
         expectIllegalArgument(() -> new Experiment(0, 10));
         expectIllegalArgument(() -> new Experiment(10, 0));
-        expectIllegalArgument(() -> new RunOutcome(-1, 0));
+        expectIllegalArgument(() -> new RunOutcome(-1, 0, 0));
+        expectIllegalArgument(() -> new RunOutcome(0, 0, -1));
     }
 
     private static boolean close(double actual, double expected) {

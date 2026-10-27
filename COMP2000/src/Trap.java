@@ -7,7 +7,9 @@ import java.awt.Image;
 import java.awt.Stroke;
 import java.io.File;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.swing.ImageIcon;
 
@@ -17,6 +19,10 @@ import javax.swing.ImageIcon;
  * <p>Each zombie caught uses up one of the trap's limited uses. When
  * no uses are left the trap breaks and is removed from the world.
  * Humans and military units can walk over a trap safely.
+ *
+ * <p>A trap announces every catch to its {@link TrapListener}s (the
+ * Observer pattern), so other parts of the program can react without the
+ * trap knowing about them.
  *
  * <p>Traps are drawn as a landmine. The picture is loaded once and shared by
  * every trap; if it can't be found, traps fall back to a drawn red ring so
@@ -30,6 +36,7 @@ public class Trap extends Entity {
 
     private final int maxUses;
     private int remainingUses;
+    private final List<TrapListener> listeners = new ArrayList<>();
 
     /**
      * Creates a trap at the given position.
@@ -61,8 +68,39 @@ public class Trap extends Entity {
     }
 
     /**
+     * Subscribes a listener to this trap's catches. Adding the same listener
+     * twice has no effect, so it is never told about a catch twice.
+     *
+     * @throws NullPointerException if {@code listener} is null
+     */
+    public void addTrapListener(TrapListener listener) {
+        Objects.requireNonNull(listener, "Listener cannot be null");
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    /** Stops telling a listener about this trap's catches. */
+    public void removeTrapListener(TrapListener listener) {
+        listeners.remove(listener);
+    }
+
+    /**
+     * Subscribes a listener to every trap currently in the world. Safe to call
+     * again after more traps are added: traps already listened to are skipped.
+     */
+    public static void listenToAll(World world, TrapListener listener) {
+        Objects.requireNonNull(listener, "Listener cannot be null");
+        world.getEntities().stream()
+                .filter(Trap.class::isInstance)
+                .map(Trap.class::cast)
+                .forEach(trap -> trap.addTrapListener(listener));
+    }
+
+    /**
      * Catches every zombie standing on the trap, up to the number of
-     * uses it has left, and breaks the trap once it is used up.
+     * uses it has left, tells the listeners about each one, and breaks the
+     * trap once it is used up.
      */
     @Override
     public void update(World world) {
@@ -75,11 +113,21 @@ public class Trap extends Entity {
                 .limit(remainingUses)
                 .collect(Collectors.toList());
 
-        caughtZombies.forEach(Zombie::deactivate);
-        remainingUses -= caughtZombies.size();
+        for (Zombie zombie : caughtZombies) {
+            zombie.deactivate();
+            remainingUses--;
+            announceCatch(zombie);
+        }
 
         if (remainingUses == 0) {
             deactivate();
+        }
+    }
+
+    private void announceCatch(Zombie zombie) {
+        // Notify a copy, so a listener can unsubscribe while it is being told.
+        for (TrapListener listener : List.copyOf(listeners)) {
+            listener.onZombieCaught(this, zombie);
         }
     }
 

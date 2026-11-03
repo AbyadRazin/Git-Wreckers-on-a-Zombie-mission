@@ -141,7 +141,7 @@ public class Main {
     // Package-private so Experiment can build the same starting world.
     static void populateWorld(World world, Random random) {
         world.addEntity(new Building(155, 125, 150, 100));
-        world.addEntity(new Building(580, 490, 150, 100));
+        world.addEntity(new Building(580, 490, 150, 100, 3, new EmergencyAdmissionPolicy(2, 60)));
 
         // Traps go at random spots near the building entrances, shared out
         // between the buildings: survivors run there for shelter and zombies

@@ -37,6 +37,7 @@ jobs:
         working-directory: COMP2000
         run: |
           javac -cp out -d out test/*.java
+          java -ea -Djava.awt.headless=true -cp "out:src" BuildingTest
           java -ea -cp "out:src" HumanFoodTest
           java -ea -Djava.awt.headless=true -cp "out:src" WorldTest
           java -ea -Djava.awt.headless=true -cp "out:src" MainSpawnTest

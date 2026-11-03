@@ -39,16 +39,16 @@ public final class MilitaryPatternsTest {
         Weapon scoped = new ScopeDecorator(rifle);
         Weapon both = new ExtendedMagazineDecorator(scoped);
 
-        check(rifle.range() == 70.0 && rifle.magazineSize() == 6, "base rifle stats");
-        check(scoped.range() == 130.0, "scope adds range");
+        check(rifle.range() == 140.0 && rifle.magazineSize() == 6, "base rifle stats");
+        check(scoped.range() == 210.0, "scope adds range");
         check(scoped.fireIntervalTicks() == 15, "scope slows the fire rate");
         check(scoped.magazineSize() == 6, "scope leaves the magazine alone");
-        check(both.range() == 130.0, "outer decorator forwards range");
+        check(both.range() == 210.0, "outer decorator forwards range");
         check(both.magazineSize() == 12 && both.reloadTicks() == 42,
                 "extended magazine adds rounds and reload time");
         check("Rifle + Scope + Extended Magazine".equals(both.describe()),
                 "description lists the stack, got " + both.describe());
-        check(rifle.range() == 70.0, "decorating never mutates the wrapped weapon");
+        check(rifle.range() == 140.0, "decorating never mutates the wrapped weapon");
     }
 
     private static void testDecoratorRejectsNullWeapon() {
@@ -115,7 +115,7 @@ public final class MilitaryPatternsTest {
     private static void testStateMachinePatrolEngageReload() {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
-        Zombie zombie = new Zombie(300, 360);
+        Zombie zombie = new Zombie(300, 380);
         world.addEntity(soldier);
         world.addEntity(zombie);
 
@@ -130,7 +130,7 @@ public final class MilitaryPatternsTest {
         int shots = 0;
         while (soldier.getAmmo() > 0 && shots < 100) {
             if (!zombie.isActive()) {
-                zombie = new Zombie(300, 360);
+                zombie = new Zombie(300, 380);
                 world.addEntity(zombie);
             }
             soldier.update(world);
@@ -138,7 +138,7 @@ public final class MilitaryPatternsTest {
         }
         check(soldier.getAmmo() == 0, "magazine eventually runs dry");
         if (!zombie.isActive()) {
-            zombie = new Zombie(300, 360);
+            zombie = new Zombie(300, 380);
             world.addEntity(zombie);
         }
         soldier.update(world);
@@ -158,7 +158,7 @@ public final class MilitaryPatternsTest {
     private static void testSoldierReturnsToPatrolWhenThreatIsGone() {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
-        Zombie zombie = new Zombie(300, 360);
+        Zombie zombie = new Zombie(300, 380);
         world.addEntity(soldier);
         world.addEntity(zombie);
 
@@ -192,9 +192,8 @@ public final class MilitaryPatternsTest {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
         Zombie nearToSoldier = new Zombie(300, 350);
-        // Kept inside the soldier's reduced 156-unit sight.
-        Zombie nearToCivilian = new Zombie(420, 300);
-        Human civilian = new Human(440, 300);
+        Zombie nearToCivilian = new Zombie(450, 300);
+        Human civilian = new Human(470, 300);
         world.addEntity(soldier);
         world.addEntity(nearToSoldier);
         world.addEntity(nearToCivilian);
@@ -229,7 +228,7 @@ public final class MilitaryPatternsTest {
         killOne(world, soldier);
         check("Rifle + Scope".equals(soldier.getWeapon().describe()),
                 "second kill adds a scope, got " + soldier.getWeapon().describe());
-        check(soldier.getWeapon().range() == 130.0, "scope range is live");
+        check(soldier.getWeapon().range() == 210.0, "scope range is live");
         killOne(world, soldier);
         killOne(world, soldier);
         check("Rifle + Scope + Extended Magazine".equals(soldier.getWeapon().describe()),

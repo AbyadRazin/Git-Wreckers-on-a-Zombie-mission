@@ -10,9 +10,11 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.*;
 
-public class SimPanel extends JPanel {
+public class SimPanel extends JPanel implements WorldObserver {
 
     private final World world;
+    private WorldStatistics statistics;
+    private boolean observing;
     private final Image backgroundImage;
     private final Runnable resetAction;
 
@@ -33,6 +35,7 @@ public class SimPanel extends JPanel {
 
     public SimPanel(World world, Runnable resetAction) {
         this.world = Objects.requireNonNull(world);
+        this.statistics = world.getStatistics();
         this.resetAction = Objects.requireNonNull(resetAction);
         started = false;
         paused = false;
@@ -72,6 +75,43 @@ public class SimPanel extends JPanel {
             }
         });
     }
+    /** Subscribe while the panel is attached to a Swing window. */
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        observing = true;
+        world.addObserver(this);
+        // Startup may have published before this panel existed.
+        onWorldChanged(world.getStatistics());
+    }
+
+    /** Release the subscription when the panel leaves its window. */
+    @Override
+    public void removeNotify() {
+        observing = false;
+        world.removeObserver(this);
+        super.removeNotify();
+    }
+
+    /** Receive a completed simulation snapshot; update Swing on its event thread. */
+    @Override
+    public void onWorldChanged(WorldStatistics statistics) {
+        Objects.requireNonNull(statistics, "Statistics cannot be null");
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> onWorldChanged(statistics));
+            return;
+        }
+        if (observing) {
+            this.statistics = statistics;
+            repaint();
+        }
+    }
+
+    /** The immutable snapshot currently used by the population HUD. */
+    WorldStatistics getDisplayedStatistics() {
+        return statistics;
+    }
+
     private void setupKeyBindings() {
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
                 KeyStroke.getKeyStroke("pressed R"),
@@ -237,6 +277,8 @@ public class SimPanel extends JPanel {
                                 + "/"
                                 + building.getCapacity();
 
+                occupancyText = building.getAdmissionDescription() + " | " + occupancyText;
+
                 int textX = (int) building.getX();
                 int textY = (int) building.getY() - 10;
 
@@ -254,10 +296,10 @@ public class SimPanel extends JPanel {
                         textY
                 );
             }
-            int humanCount = countActiveEntitiesNamed("Human");
-            int zombieCount = countActiveEntitiesNamed("Zombie");
-            int militaryCount = countActiveEntitiesNamed("Military");
-            int foodCount = countActiveEntitiesNamed("Food");
+            long humanCount = statistics.getHumanCount();
+            long zombieCount = statistics.getZombieCount();
+            long militaryCount = statistics.getMilitaryCount();
+            long foodCount = statistics.getFoodCount();
 
             BattleReport battle = BattleReport.of(world.getEntities());
 
@@ -265,7 +307,7 @@ public class SimPanel extends JPanel {
             graphics2D.fillRoundRect(15, 15, 220, 156, 12, 12);
 
             graphics2D.setColor(Color.WHITE);
-            graphics2D.drawString("Tick: " + world.getTick(), 25, 38);
+            graphics2D.drawString("Tick: " + statistics.getTick(), 25, 38);
             graphics2D.drawString("Humans: " + humanCount, 25, 58);
             graphics2D.drawString("Zombies: " + zombieCount, 25, 78);
             graphics2D.drawString("Military: " + militaryCount, 25, 98);
@@ -363,14 +405,4 @@ public class SimPanel extends JPanel {
         return matchingEntities;
     }
 
-    private int countActiveEntitiesNamed(String className) {
-        int count = 0;
-        for (Entity entity : world.getEntities()) {
-            if (entity.isActive()
-                    && entity.getClass().getSimpleName().equals(className)) {
-                count++;
-            }
-        }
-        return count;
-    }
 }

@@ -24,6 +24,11 @@ public final class MilitaryPatternsTest {
         testBattleReportIsIdenticalSequentialAndParallel();
         testBattleReportOfEmptyWorldIsZero();
         testInfectedHumanRisesAsZombie();
+        testRankFollowsKills();
+        testPatrolSkipsAnUnreachableWaypoint();
+        testLowMagazineIsRefilledOnceSafe();
+        testSquadSpreadsAcrossZombies();
+        testSoldierFacesWhatItShoots();
         System.out.println("MilitaryPatternsTest passed");
     }
 
@@ -34,16 +39,16 @@ public final class MilitaryPatternsTest {
         Weapon scoped = new ScopeDecorator(rifle);
         Weapon both = new ExtendedMagazineDecorator(scoped);
 
-        check(rifle.range() == 70.0 && rifle.magazineSize() == 6, "base rifle stats");
-        check(scoped.range() == 130.0, "scope adds range");
+        check(rifle.range() == 140.0 && rifle.magazineSize() == 6, "base rifle stats");
+        check(scoped.range() == 210.0, "scope adds range");
         check(scoped.fireIntervalTicks() == 15, "scope slows the fire rate");
         check(scoped.magazineSize() == 6, "scope leaves the magazine alone");
-        check(both.range() == 130.0, "outer decorator forwards range");
+        check(both.range() == 210.0, "outer decorator forwards range");
         check(both.magazineSize() == 12 && both.reloadTicks() == 42,
                 "extended magazine adds rounds and reload time");
         check("Rifle + Scope + Extended Magazine".equals(both.describe()),
                 "description lists the stack, got " + both.describe());
-        check(rifle.range() == 70.0, "decorating never mutates the wrapped weapon");
+        check(rifle.range() == 140.0, "decorating never mutates the wrapped weapon");
     }
 
     private static void testDecoratorRejectsNullWeapon() {
@@ -110,7 +115,7 @@ public final class MilitaryPatternsTest {
     private static void testStateMachinePatrolEngageReload() {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
-        Zombie zombie = new Zombie(300, 360);
+        Zombie zombie = new Zombie(300, 380);
         world.addEntity(soldier);
         world.addEntity(zombie);
 
@@ -125,7 +130,7 @@ public final class MilitaryPatternsTest {
         int shots = 0;
         while (soldier.getAmmo() > 0 && shots < 100) {
             if (!zombie.isActive()) {
-                zombie = new Zombie(300, 360);
+                zombie = new Zombie(300, 380);
                 world.addEntity(zombie);
             }
             soldier.update(world);
@@ -133,7 +138,7 @@ public final class MilitaryPatternsTest {
         }
         check(soldier.getAmmo() == 0, "magazine eventually runs dry");
         if (!zombie.isActive()) {
-            zombie = new Zombie(300, 360);
+            zombie = new Zombie(300, 380);
             world.addEntity(zombie);
         }
         soldier.update(world);
@@ -153,7 +158,7 @@ public final class MilitaryPatternsTest {
     private static void testSoldierReturnsToPatrolWhenThreatIsGone() {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
-        Zombie zombie = new Zombie(300, 360);
+        Zombie zombie = new Zombie(300, 380);
         world.addEntity(soldier);
         world.addEntity(zombie);
 
@@ -187,9 +192,8 @@ public final class MilitaryPatternsTest {
         World world = new World(1000, 750);
         Military soldier = new Military(300, 300);
         Zombie nearToSoldier = new Zombie(300, 350);
-        // Kept inside the soldier's reduced 156-unit sight.
-        Zombie nearToCivilian = new Zombie(420, 300);
-        Human civilian = new Human(440, 300);
+        Zombie nearToCivilian = new Zombie(450, 300);
+        Human civilian = new Human(470, 300);
         world.addEntity(soldier);
         world.addEntity(nearToSoldier);
         world.addEntity(nearToCivilian);
@@ -224,7 +228,7 @@ public final class MilitaryPatternsTest {
         killOne(world, soldier);
         check("Rifle + Scope".equals(soldier.getWeapon().describe()),
                 "second kill adds a scope, got " + soldier.getWeapon().describe());
-        check(soldier.getWeapon().range() == 130.0, "scope range is live");
+        check(soldier.getWeapon().range() == 210.0, "scope range is live");
         killOne(world, soldier);
         killOne(world, soldier);
         check("Rifle + Scope + Extended Magazine".equals(soldier.getWeapon().describe()),
@@ -321,6 +325,110 @@ public final class MilitaryPatternsTest {
         check(world.getStatistics().getHumanCount() == 0, "human was infected");
         check(world.getStatistics().getZombieCount() == zombiesBefore + 1,
                 "the victim rose as a new zombie");
+    }
+
+    // ---- Ranks, patrol edge case, reload, squad, facing ---------------------
+
+    private static void testRankFollowsKills() throws Exception {
+        check(Rank.forKills(0) == Rank.RECRUIT && Rank.forKills(1) == Rank.RECRUIT,
+                "no rank before the first promotion");
+        check(Rank.forKills(2) == Rank.VETERAN && Rank.forKills(3) == Rank.VETERAN,
+                "veteran from two kills");
+        check(Rank.forKills(4) == Rank.ELITE && Rank.forKills(99) == Rank.ELITE,
+                "elite from four kills, and no higher");
+
+        World world = new World(1000, 750);
+        Military soldier = new Military(300, 300);
+        world.addEntity(soldier);
+        check(soldier.getRank() == Rank.RECRUIT, "new soldier is a recruit");
+        killOne(world, soldier);
+        killOne(world, soldier);
+        check(soldier.getRank() == Rank.VETERAN, "two kills make a veteran");
+    }
+
+    private static void testPatrolSkipsAnUnreachableWaypoint() {
+        World world = new World(1000, 750);
+        // The middle waypoint is outside the world, so the unit can never reach it.
+        PatrolRoute route = new PatrolRoute(Arrays.asList(
+                new Point2D.Double(300, 300),
+                new Point2D.Double(-500, 300),
+                new Point2D.Double(300, 400)));
+        Military soldier = new Military(300, 300, route, new Rifle());
+        MovementBehaviour patrol = MovementBehaviour.patrol(route);
+
+        int steps = 0;
+        while (Math.hypot(soldier.getX() - 300, soldier.getY() - 400) > 10 && steps++ < 800) {
+            patrol.move(soldier, world);
+        }
+        check(steps < 800, "unit got stuck pushing against the world edge, at ("
+                + soldier.getX() + ", " + soldier.getY() + ")");
+    }
+
+    private static void testLowMagazineIsRefilledOnceSafe() throws Exception {
+        World world = new World(1000, 750);
+        Military soldier = new Military(300, 300);
+        world.addEntity(soldier);
+
+        killOne(world, soldier);
+        world.removeInactiveEntities();
+        soldier.update(world);
+        check("Patrolling".equals(soldier.getStateName()),
+                "a nearly full magazine goes straight back to patrol");
+
+        killOne(world, soldier);
+        killOne(world, soldier);
+        killOne(world, soldier);
+        world.removeInactiveEntities();
+        check(soldier.getAmmo() == 2, "two rounds left, got " + soldier.getAmmo());
+        soldier.update(world);
+        check("Reloading".equals(soldier.getStateName()),
+                "low magazine and nothing to shoot -> Reloading, got " + soldier.getStateName());
+
+        for (int tick = 0; tick < 60 && soldier.getAmmo() < soldier.getWeapon().magazineSize(); tick++) {
+            soldier.update(world);
+        }
+        check(soldier.getAmmo() == soldier.getWeapon().magazineSize(),
+                "magazine refilled before returning to patrol");
+        soldier.update(world);
+        check("Patrolling".equals(soldier.getStateName()), "then back on patrol");
+    }
+
+    private static void testSquadSpreadsAcrossZombies() {
+        World world = new World(1000, 750);
+        Military closer = new Military(200, 300);
+        Military farther = new Military(260, 300);
+        Zombie first = new Zombie(200, 500);
+        Zombie second = new Zombie(330, 500);
+        world.addEntity(closer);
+        world.addEntity(farther);
+        world.addEntity(first);
+        world.addEntity(second);
+
+        // Both soldiers would pick the first zombie on their own.
+        check(closer.findThreat(world).get() == first, "closer soldier prefers the first zombie");
+        check(farther.findThreat(world).get() == first, "farther soldier would too");
+
+        closer.update(world);
+        farther.update(world);
+        check(closer.getTarget().get() == first, "the closer soldier keeps the first zombie");
+        check(farther.getTarget().get() == second,
+                "the farther soldier takes the other zombie instead of doubling up");
+    }
+
+    private static void testSoldierFacesWhatItShoots() throws Exception {
+        World world = new World(1000, 750);
+        Military soldier = new Military(300, 300);
+        Zombie behind = new Zombie(300, 230);
+        world.addEntity(soldier);
+        world.addEntity(behind);
+
+        soldier.update(world);
+        soldier.update(world);
+        check(!behind.isActive(), "zombie above was shot");
+        java.lang.reflect.Field facing = Military.class.getDeclaredField("facing");
+        facing.setAccessible(true);
+        check("BACK".equals(String.valueOf(facing.get(soldier))),
+                "soldier turned to face the zombie above it, facing " + facing.get(soldier));
     }
 
     // ---- helpers ----------------------------------------------------------

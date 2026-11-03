@@ -17,8 +17,6 @@ public class Main {
     // Reserve the default patrol's 160/110-unit excursions and sprite clearance.
     private static final double MILITARY_SPAWN_MARGIN_X = 180;
     private static final double MILITARY_SPAWN_MARGIN_Y = 140;
-    // A few zombies from the start so traps and infection have an early impact.
-    private static final int STARTING_ZOMBIES = 3;
     // Extra traps the viewer can place by hand each run.
     private static final int PLACEABLE_TRAPS = 3;
     private static final int STARTING_TRAPS = 3;
@@ -141,7 +139,7 @@ public class Main {
     // Package-private so Experiment can build the same starting world.
     static void populateWorld(World world, Random random) {
         world.addEntity(new Building(155, 125, 150, 100));
-        world.addEntity(new Building(580, 490, 150, 100));
+        world.addEntity(new Building(580, 490, 150, 100, 3, new EmergencyAdmissionPolicy(2, 60)));
 
         // Traps go at random spots near the building entrances, shared out
         // between the buildings: survivors run there for shelter and zombies
@@ -167,11 +165,9 @@ public class Main {
         world.addEntity(new Food(500, 600, 45));
         world.addEntity(new Food(850, 150, 45));
 
-        for (int index = 0; index < STARTING_ZOMBIES; index++) {
-            world.addEntity(new Zombie(
-                    randomCoordinate(random, world.getWidth(), AGENT_SPAWN_MARGIN),
-                    randomCoordinate(random, world.getHeight(), AGENT_SPAWN_MARGIN)));
-        }
+        world.addEntity(new Zombie(
+                randomCoordinate(random, world.getWidth(), AGENT_SPAWN_MARGIN),
+                randomCoordinate(random, world.getHeight(), AGENT_SPAWN_MARGIN)));
         for (int index = 0; index < 2; index++) {
             world.addEntity(new Military(
                     randomCoordinate(random, world.getWidth(), MILITARY_SPAWN_MARGIN_X),

@@ -2,8 +2,8 @@ import java.util.Optional;
 
 /**
  * Closes on the most dangerous zombie and shoots it once it is in range.
- * Returns to patrol when no zombie is left and drops into
- * {@link ReloadingState} when the magazine runs dry.
+ * Returns to patrol when no zombie is left (reloading first if the magazine
+ * is low) and drops into {@link ReloadingState} when it runs dry.
  */
 public class EngageState implements MilitaryState {
 
@@ -28,7 +28,11 @@ public class EngageState implements MilitaryState {
         Optional<Zombie> threat = unit.findThreat(world);
         if (!threat.isPresent()) {
             unit.clearTarget();
-            unit.transitionTo(unit.patrolState());
+            // Nothing left to shoot: top up a low magazine before moving on,
+            // so the next contact does not start with an empty rifle.
+            unit.transitionTo(unit.needsReload()
+                    ? new ReloadingState(unit.getWeapon().reloadTicks())
+                    : unit.patrolState());
             return;
         }
 

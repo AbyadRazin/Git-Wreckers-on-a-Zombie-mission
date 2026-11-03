@@ -8,6 +8,8 @@ public class World {
 
     private static final int FOOD_SPAWN_INTERVAL_TICKS = 25;
     private static final int HUMAN_SPAWN_INTERVAL_TICKS = 100;
+    private static final int ZOMBIE_SPAWN_INTERVAL_TICKS = 300;
+    private static final double ZOMBIE_EDGE_MARGIN = 30.0;
     private static final double FOOD_ENERGY_VALUE = 45.0;
 
     private final List<Entity> entities;
@@ -164,7 +166,10 @@ public class World {
         tick = 0;
     }
 
-    /** Adds food and humans at random locations at regular simulation intervals. */
+    /**
+     * Adds food and humans at random locations, and a zombie wandering in
+     * from the edge of the world, at regular simulation intervals.
+     */
     private void spawnEntities() {
         if (tick % FOOD_SPAWN_INTERVAL_TICKS == 0) {
             addEntity(new Food(random.nextDouble() * width,
@@ -174,6 +179,26 @@ public class World {
         if (tick % HUMAN_SPAWN_INTERVAL_TICKS == 0) {
             addEntity(new Human(random.nextDouble() * width,
                     random.nextDouble() * height));
+        }
+
+        if (tick % ZOMBIE_SPAWN_INTERVAL_TICKS == 0) {
+            addEntity(newEdgeZombie());
+        }
+    }
+
+    /** A zombie placed on a random side of the world, so it walks in rather than appearing on top of someone. */
+    private Zombie newEdgeZombie() {
+        double x = ZOMBIE_EDGE_MARGIN + random.nextDouble() * (width - 2 * ZOMBIE_EDGE_MARGIN);
+        double y = ZOMBIE_EDGE_MARGIN + random.nextDouble() * (height - 2 * ZOMBIE_EDGE_MARGIN);
+        switch (random.nextInt(4)) {
+            case 0:
+                return new Zombie(x, ZOMBIE_EDGE_MARGIN);
+            case 1:
+                return new Zombie(x, height - ZOMBIE_EDGE_MARGIN);
+            case 2:
+                return new Zombie(ZOMBIE_EDGE_MARGIN, y);
+            default:
+                return new Zombie(width - ZOMBIE_EDGE_MARGIN, y);
         }
     }
 

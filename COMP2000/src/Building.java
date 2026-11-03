@@ -3,6 +3,7 @@ import java.awt.image.ImageObserver;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Objects;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
@@ -12,13 +13,21 @@ public class Building extends Entity {
     private final int height;
     private final int capacity;
     private int occupantCount;
+    private final AdmissionPolicy admissionPolicy;
 
     public Building(double x, double y, int width, int height) {
         this(x, y, width, height, 10);
     }
 
     public Building(double x, double y, int width, int height, int capacity) {
+        this(x, y, width, height, capacity, new OpenAdmissionPolicy());
+    }
+
+    /** Compose a building with an interchangeable admission strategy. */
+    public Building(double x, double y, int width, int height, int capacity,
+                    AdmissionPolicy admissionPolicy) {
         super(x, y);
+        this.admissionPolicy = Objects.requireNonNull(admissionPolicy, "Admission policy cannot be null");
         if (width > 0 && height > 0) {
             if (capacity <= 0) {
                 throw new IllegalArgumentException("Building capacity must be positive");
@@ -61,17 +70,31 @@ public class Building extends Entity {
         return this.occupantCount >= this.capacity;
     }
 
+    /** Capacity query retained for callers that do not yet have a person. */
     public boolean canEnter() {
-        return !this.isFull();
+        return isActive() && !isFull();
     }
 
+    public boolean canEnter(Human person) {
+        return person != null && person.isActive() && canEnter()
+                && admissionPolicy.allows(person, this);
+    }
+
+    /** Legacy anonymous admission is available only when the strategy permits it. */
     public boolean enter() {
-        if (this.isFull()) {
-            return false;
-        } else {
-            ++this.occupantCount;
-            return true;
-        }
+        if (!canEnter() || !admissionPolicy.allows(null, this)) return false;
+        occupantCount++;
+        return true;
+    }
+
+    public boolean enter(Human person) {
+        if (!canEnter(person)) return false;
+        occupantCount++;
+        return true;
+    }
+
+    public String getAdmissionDescription() {
+        return admissionPolicy.describe();
     }
 
     public boolean leave() {

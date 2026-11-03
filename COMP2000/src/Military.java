@@ -37,19 +37,22 @@ import javax.swing.ImageIcon;
  */
 public class Military extends Human {
 
-    // 40% shorter sight than the original 260, so zombies get closer before soldiers react.
-    private static final double DETECTION_RADIUS = 156.0;
+    // Distances are measured in pixels; cooldowns and animation durations use ticks.
+    private static final double DETECTION_RADIUS = 260.0;
     private static final double SPEED = 2.4;
     private static final int MUZZLE_FLASH_TICKS = 3;
     private static final int CHARACTER_WIDTH = 38;
     private static final int CHARACTER_HEIGHT = 54;
     private static final int TICKS_PER_WALK_FRAME = 8;
 
+    /** A unit below this fraction of a full magazine reloads once it is safe. */
+    private static final int LOW_AMMO_DIVISOR = 3;
+
     /** Weapon upgrade awarded when a unit reaches the given number of kills. */
     private static final Map<Integer, UnaryOperator<Weapon>> PROMOTIONS =
             Map.<Integer, UnaryOperator<Weapon>>of(
-                    2, ScopeDecorator::new,
-                    4, ExtendedMagazineDecorator::new);
+                    Rank.VETERAN.minKills(), ScopeDecorator::new,
+                    Rank.ELITE.minKills(), ExtendedMagazineDecorator::new);
 
     private final PatrolState patrolState;
     private final EngageState engageState;
@@ -62,11 +65,7 @@ public class Military extends Human {
     private int muzzleFlashTicks;
     private int kills;
 
-    private final Image[] frontWalkFrames;
-    private final Image[] sideWalkFrames;
-    private final Image frontIdleFrame;
-    private final Image sideIdleFrame;
-    private final Image backFrame;
+    private final Sprites sprites = Sprites.shared();
     private int walkFrame;
     private int ticksOnCurrentFrame;
     private boolean facingLeft;
@@ -79,24 +78,11 @@ public class Military extends Human {
         Objects.requireNonNull(route, "Route cannot be null");
         this.weapon = Objects.requireNonNull(weapon, "Weapon cannot be null");
         this.ammo = weapon.magazineSize();
+        // Create the movement strategies once; states decide when to invoke them.
         this.patrolState = new PatrolState(MovementBehaviour.patrol(route));
         this.engageState = new EngageState(MovementBehaviour.hunt());
         this.state = patrolState;
 
-        frontWalkFrames = new Image[]{
-                loadImage("/MilitaryFrontWalk1.png"),
-                loadImage("/MilitaryFrontWalk2.png"),
-                loadImage("/MilitaryFrontWalk3.png"),
-                loadImage("/MilitaryFrontWalk4.png")
-        };
-        sideWalkFrames = new Image[]{
-                loadImage("/MilitaryWalk1.png"),
-                loadImage("/MilitaryWalk2.png"),
-                loadImage("/MilitaryWalk3.png")
-        };
-        frontIdleFrame = loadImage("/MilitaryFrontIdle.png");
-        sideIdleFrame = loadImage("/MilitarySideIdle.png");
-        backFrame = loadImage("/MilitaryBack.png");
     }
 
     /** Creates a unit with a standard rifle that patrols the given waypoints. */
@@ -125,6 +111,11 @@ public class Military extends Human {
         return weapon;
     }
 
+    /** The unit's standing, earned from its kill count. */
+    public Rank getRank() {
+        return Rank.forKills(kills);
+    }
+
     /** "Patrolling", "Engaging" or "Reloading". */
     public String getStateName() {
         return state.name();
@@ -144,6 +135,7 @@ public class Military extends Human {
             muzzleFlashTicks--;
         }
 
+        // The active state handles sensing, movement, combat and state transitions.
         state.update(this, world);
     }
 
@@ -169,6 +161,11 @@ public class Military extends Human {
         this.target = null;
     }
 
+    /** True once the magazine is low enough to be worth refilling while safe. */
+    boolean needsReload() {
+        return ammo * LOW_AMMO_DIVISOR <= weapon.magazineSize();
+    }
+
     /** Refills the magazine to the current weapon's capacity. */
     void reload() {
         ammo = weapon.magazineSize();
@@ -179,6 +176,8 @@ public class Military extends Human {
      * civilian, so soldiers intercept threats to people rather than shooting
      * whichever zombie happens to be nearest to themselves. Distance to the
      * soldier breaks ties (and decides when there are no civilians around).
+     * A zombie that a closer soldier is already engaging is left to them, so a
+     * squad spreads out over the threats instead of all chasing the same one.
      */
     public Optional<Zombie> findThreat(World world) {
         List<Entity> nearby = world.getNearby(this, DETECTION_RADIUS);
@@ -199,7 +198,23 @@ public class Military extends Human {
                 .filter(entity -> entity instanceof Zombie)
                 .map(entity -> (Zombie) entity)
                 .filter(Entity::isActive)
+                .filter(zombie -> !isLeftToCloserSoldier(zombie, world))
                 .min(closestToACivilian.thenComparingDouble(this::distanceTo));
+    }
+
+    /**
+     * Whether another soldier who can fire is engaging this zombie from closer
+     * in. The test is strict (closer, never equal) so two soldiers can never
+     * both defer to each other and leave the zombie alone.
+     */
+    private boolean isLeftToCloserSoldier(Zombie zombie, World world) {
+        return world.getEntities().stream()
+                .filter(entity -> entity instanceof Military && entity != this)
+                .map(entity -> (Military) entity)
+                .anyMatch(other -> other.state.isEngaging()
+                        && other.target == zombie
+                        && other.ammo > 0
+                        && other.distanceTo(zombie) < distanceTo(zombie));
     }
 
     /**
@@ -218,6 +233,10 @@ public class Military extends Human {
                     "No zombie within firing range of the military unit at ("
                             + (int) getX() + ", " + (int) getY() + ")");
         }
+
+        // Turn to the zombie even while standing still, so the sprite looks
+        // at what it is shooting.
+        faceDirection(target.getX() - getX(), target.getY() - getY());
 
         if (fireCooldown > 0 || ammo == 0) {
             return;
@@ -247,16 +266,13 @@ public class Military extends Human {
             return;
         }
 
+        // Normalise the displacement so movement speed is independent of distance.
         double directionX = xDifference / distance;
         double directionY = yDifference / distance;
 
-        if (Math.abs(directionY) > Math.abs(directionX)) {
-            facing = directionY < 0 ? Facing.BACK : Facing.FRONT;
-        } else if (Math.abs(directionX) > 0.01) {
-            facing = Facing.SIDE;
-            facingLeft = directionX < 0;
-        }
+        faceDirection(directionX, directionY);
 
+        // Keep the full sprite inside the world after taking one movement step.
         double nextX = getX() + directionX * SPEED;
         double nextY = getY() + directionY * SPEED;
         nextX = Math.max(CHARACTER_WIDTH / 2.0,
@@ -267,6 +283,16 @@ public class Military extends Human {
 
         moving = true;
         advanceWalkAnimation();
+    }
+
+    /** Picks the front, side or back sprite for a direction of travel or aim. */
+    private void faceDirection(double directionX, double directionY) {
+        if (Math.abs(directionY) > Math.abs(directionX)) {
+            facing = directionY < 0 ? Facing.BACK : Facing.FRONT;
+        } else if (Math.abs(directionX) > 0.01) {
+            facing = Facing.SIDE;
+            facingLeft = directionX < 0;
+        }
     }
 
     private void advanceWalkAnimation() {
@@ -352,42 +378,89 @@ public class Military extends Human {
         graphics.drawString(label, labelX + 1, barTop - 2);
         graphics.setColor(Color.WHITE);
         graphics.drawString(label, labelX, barTop - 3);
+
+        drawRankChevrons(graphics, barTop);
+    }
+
+    /** One gold chevron per rank earned, stacked to the right of the ammo bar. */
+    private void drawRankChevrons(Graphics2D graphics, int barTop) {
+        int chevrons = getRank().ordinal();
+        int left = (int) getX() + weapon.magazineSize() * 5 / 2 + 4;
+        graphics.setColor(new Color(255, 200, 40));
+        graphics.setStroke(new BasicStroke(1.5f));
+        for (int level = 0; level < chevrons; level++) {
+            int top = barTop + 3 - level * 4;
+            graphics.drawLine(left, top, left + 3, top - 3);
+            graphics.drawLine(left + 3, top - 3, left + 6, top);
+        }
     }
 
     private Image getCurrentFrame() {
         if (!moving) {
             if (facing == Facing.SIDE) {
-                return sideIdleFrame;
+                return sprites.sideIdle;
             }
-            return facing == Facing.BACK ? backFrame : frontIdleFrame;
+            return facing == Facing.BACK ? sprites.back : sprites.frontIdle;
         }
 
         if (facing == Facing.SIDE) {
-            return sideWalkFrames[walkFrame % sideWalkFrames.length];
+            return sprites.sideWalk[walkFrame % sprites.sideWalk.length];
         }
         if (facing == Facing.BACK) {
-            return backFrame;
+            return sprites.back;
         }
-        return frontWalkFrames[walkFrame % frontWalkFrames.length];
+        return sprites.frontWalk[walkFrame % sprites.frontWalk.length];
     }
 
-    private Image loadImage(String imagePath) {
-        URL imageUrl = Military.class.getResource(imagePath);
-        if (imageUrl != null) {
-            return new ImageIcon(imageUrl).getImage();
+    /**
+     * The soldier artwork, loaded once and shared by every unit so spawning or
+     * resetting the world does not re-read nine image files per soldier.
+     */
+    private static final class Sprites {
+
+        private static Sprites shared;
+
+        final Image[] frontWalk = {
+                loadImage("/MilitaryFrontWalk1.png"),
+                loadImage("/MilitaryFrontWalk2.png"),
+                loadImage("/MilitaryFrontWalk3.png"),
+                loadImage("/MilitaryFrontWalk4.png")
+        };
+        final Image[] sideWalk = {
+                loadImage("/MilitaryWalk1.png"),
+                loadImage("/MilitaryWalk2.png"),
+                loadImage("/MilitaryWalk3.png")
+        };
+        final Image frontIdle = loadImage("/MilitaryFrontIdle.png");
+        final Image sideIdle = loadImage("/MilitarySideIdle.png");
+        final Image back = loadImage("/MilitaryBack.png");
+
+        /** A missing image throws, and nothing is cached, so the next call retries. */
+        static synchronized Sprites shared() {
+            if (shared == null) {
+                shared = new Sprites();
+            }
+            return shared;
         }
 
-        // When Java is run with only the generated out directory on its
-        // classpath, image assets remain in src rather than being duplicated.
-        String fileName = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
-        File sourceAsset = new File("src", fileName);
-        if (!sourceAsset.isFile()) {
-            sourceAsset = new File("COMP2000/src", fileName);
+        private static Image loadImage(String imagePath) {
+            URL imageUrl = Military.class.getResource(imagePath);
+            if (imageUrl != null) {
+                return new ImageIcon(imageUrl).getImage();
+            }
+
+            // When Java is run with only the generated out directory on its
+            // classpath, image assets remain in src rather than being duplicated.
+            String fileName = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
+            File sourceAsset = new File("src", fileName);
+            if (!sourceAsset.isFile()) {
+                sourceAsset = new File("COMP2000/src", fileName);
+            }
+            if (!sourceAsset.isFile()) {
+                throw new IllegalStateException(imagePath + " was not found");
+            }
+            return new ImageIcon(sourceAsset.getAbsolutePath()).getImage();
         }
-        if (!sourceAsset.isFile()) {
-            throw new IllegalStateException(imagePath + " was not found");
-        }
-        return new ImageIcon(sourceAsset.getAbsolutePath()).getImage();
     }
 
     private enum Facing {

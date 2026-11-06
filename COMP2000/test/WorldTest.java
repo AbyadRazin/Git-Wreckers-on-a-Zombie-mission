@@ -124,17 +124,17 @@ public final class WorldTest {
 
     private static void testZombiesArriveInWaves() {
         World world = new World(1000, 750);
-        advanceTo(world, 299);
-        check(count(world, Zombie.class) == 0, "No zombie should arrive before tick 300");
+        advanceTo(world, 99);
+        check(count(world, Zombie.class) == 0, "No zombie should arrive before tick 100");
         world.update();
-        check(count(world, Zombie.class) == 1, "A zombie should arrive at tick 300");
+        check(count(world, Zombie.class) == 1, "A zombie should arrive at tick 100");
         // Clear the field so zombies that infect humans in between can't blur the count.
         world.getEntities().stream().filter(Zombie.class::isInstance).forEach(Entity::deactivate);
         world.removeInactiveEntities();
-        advanceTo(world, 599);
-        check(count(world, Zombie.class) == 0, "The next zombie waits for tick 600");
+        advanceTo(world, 199);
+        check(count(world, Zombie.class) == 0, "The next zombie waits for tick 200");
         world.update();
-        check(count(world, Zombie.class) == 1, "Another zombie should arrive at tick 600");
+        check(count(world, Zombie.class) == 1, "Another zombie should arrive at tick 200");
         for (Entity entity : world.getEntities()) {
             if (entity instanceof Zombie) {
                 check(entity.getX() >= 0 && entity.getX() <= world.getWidth()

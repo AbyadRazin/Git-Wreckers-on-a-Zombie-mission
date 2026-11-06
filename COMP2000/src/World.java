@@ -8,7 +8,7 @@ public class World {
 
     private static final int FOOD_SPAWN_INTERVAL_TICKS = 25;
     private static final int HUMAN_SPAWN_INTERVAL_TICKS = 100;
-    private static final int ZOMBIE_SPAWN_INTERVAL_TICKS = 300;
+    private static final int ZOMBIE_SPAWN_INTERVAL_TICKS = 100;
     private static final double ZOMBIE_EDGE_MARGIN = 30.0;
     private static final double FOOD_ENERGY_VALUE = 45.0;
 

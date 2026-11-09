@@ -65,7 +65,7 @@ public final class ExperimentSummary {
         return averageTrapCatches;
     }
 
-    /** Fraction of runs (0 to 1) that ended with no zombies left. */
+    /** Fraction of runs (0 to 1) where the outbreak was contained (see {@link RunOutcome#outbreakContained()}). */
     public double getContainedRate() {
         return containedRate;
     }

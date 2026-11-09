@@ -1,4 +1,6 @@
 import java.util.List;
+import java.util.LongSummaryStatistics;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -13,6 +15,8 @@ public final class ExperimentTest {
         testOutcomeCountsOnlyOrdinaryCivilians();
         testScenariosKeepTheRightEntities();
         testSmallExperimentRuns();
+        testRunsArePairedAcrossScenarios();
+        testSurvivorsSplitByTrapActivity();
         testInvalidArguments();
         System.out.println("ExperimentTest passed");
     }
@@ -26,7 +30,7 @@ public final class ExperimentTest {
         check(close(summary.getAverageSurvivors(), 4), "average survivors");
         check(close(summary.getAverageZombies(), 1), "average zombies");
         check(close(summary.getAverageTrapCatches(), 2), "average trap catches");
-        check(close(summary.getContainedRate(), 2.0 / 3), "two of three runs zombie-free");
+        check(close(summary.getContainedRate(), 2.0 / 3), "two of three runs contained");
         // Sample standard deviation of 2, 4, 6 is 2, so the standard error is 2 / sqrt(3).
         check(close(summary.getSurvivorsStandardError(), 2 / Math.sqrt(3)), "standard error");
     }
@@ -65,19 +69,21 @@ public final class ExperimentTest {
 
         RunOutcome outcome = RunOutcome.of(world, 4);
         check(outcome.getSurvivors() == 2, "medics, soldiers and inactive humans are not survivors");
-        check(outcome.getZombies() == 1 && !outcome.outbreakContained(), "one zombie left");
+        check(outcome.getZombies() == 1 && outcome.outbreakContained(),
+                "one zombie left is the normal background level, so it counts as contained");
+        check(!new RunOutcome(5, 2, 0).outbreakContained(), "two zombies left is not contained");
         check(outcome.getTrapCatches() == 4, "keeps the trap catches it was given");
     }
 
     private static void testScenariosKeepTheRightEntities() {
-        World neither = Experiment.Scenario.NEITHER.createWorld();
+        World neither = Experiment.Scenario.NEITHER.createWorld(1);
         check(neither.getEntities().stream().noneMatch(e -> e instanceof Medic || e instanceof Trap),
                 "baseline has no medics or traps");
-        World both = Experiment.Scenario.BOTH.createWorld();
+        World both = Experiment.Scenario.BOTH.createWorld(1);
         check(both.getEntities().stream().anyMatch(Medic.class::isInstance)
                         && both.getEntities().stream().anyMatch(Trap.class::isInstance),
                 "full scenario keeps medics and traps");
-        World trapsOnly = Experiment.Scenario.TRAPS_ONLY.createWorld();
+        World trapsOnly = Experiment.Scenario.TRAPS_ONLY.createWorld(1);
         check(trapsOnly.getEntities().stream().noneMatch(Medic.class::isInstance)
                         && trapsOnly.getEntities().stream().anyMatch(Trap.class::isInstance),
                 "traps-only scenario");
@@ -86,6 +92,41 @@ public final class ExperimentTest {
     private static void testSmallExperimentRuns() {
         ExperimentSummary summary = new Experiment(4, 20).run(Experiment.Scenario.BOTH);
         check(summary.getRuns() == 4, "every run is collected");
+    }
+
+    private static void testRunsArePairedAcrossScenarios() {
+        Experiment experiment = new Experiment(3, 10, 42);
+        long seed = experiment.layoutSeedFor(2);
+        check(seed == new Experiment(5, 10, 42).layoutSeedFor(2),
+                "the same run number gets the same layout seed");
+        check(seed != experiment.layoutSeedFor(1), "different runs get different layouts");
+
+        // Everyone who is in both scenarios starts in exactly the same place.
+        List<String> neither = startingPositions(Experiment.Scenario.NEITHER.createWorld(seed));
+        List<String> both = startingPositions(Experiment.Scenario.BOTH.createWorld(seed));
+        check(!neither.isEmpty() && neither.equals(both), "paired runs share their starting layout");
+        check(!neither.equals(startingPositions(Experiment.Scenario.NEITHER.createWorld(seed + 1))),
+                "a different seed gives a different layout");
+    }
+
+    private static void testSurvivorsSplitByTrapActivity() {
+        List<RunOutcome> outcomes = List.of(
+                new RunOutcome(10, 1, 2), new RunOutcome(8, 1, 1), new RunOutcome(4, 3, 0));
+        Map<Boolean, LongSummaryStatistics> split = Experiment.survivorsByTrapActivity(outcomes);
+        check(split.get(true).getCount() == 2 && close(split.get(true).getAverage(), 9),
+                "two runs where traps caught something, averaging 9 survivors");
+        check(split.get(false).getCount() == 1 && close(split.get(false).getAverage(), 4),
+                "one run where traps caught nothing");
+        check(Experiment.survivorsByTrapActivity(List.of()).get(false).getCount() == 0,
+                "an empty experiment still has both groups");
+    }
+
+    /** Positions of everyone who isn't a medic or a trap, in the order they were added. */
+    private static List<String> startingPositions(World world) {
+        return world.getEntities().stream()
+                .filter(entity -> !(entity instanceof Medic) && !(entity instanceof Trap))
+                .map(entity -> entity.getClass().getSimpleName() + "@" + entity.getX() + "," + entity.getY())
+                .collect(Collectors.toList());
     }
 
     private static void testInvalidArguments() {

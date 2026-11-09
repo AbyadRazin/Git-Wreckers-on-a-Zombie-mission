@@ -1,15 +1,29 @@
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
 import java.util.Comparator;
+import java.util.function.BiConsumer;
 
 /**
  * A civilian with first-aid training who keeps other survivors alive.
  *
- * <p>While it has energy to spare, a medic looks for the most urgent
- * patient nearby (the visible civilian with the lowest energy), walks over
- * and heals them, leaving shelter if it has to. It won't walk into danger:
- * patients with a zombie close by are skipped, and if a zombie comes close
- * to the medic it stops helping and looks after itself. When nobody needs
- * help, the medic is running low, or a zombie is near, it falls back to
- * ordinary {@link Human} survival: sheltering, eating and wandering.
+ * <p>Each tick a medic is in one of four {@link Mode}s (the State pattern):
+ * <ul>
+ *   <li><b>Healing</b>: it has energy to spare and someone nearby needs help,
+ *       so it walks over (leaving shelter if it has to) and heals the most
+ *       urgent patient, the visible civilian with the lowest energy.</li>
+ *   <li><b>Standing by</b>: nobody nearby needs help.</li>
+ *   <li><b>Hungry</b>: its own energy is too low to help anyone.</li>
+ *   <li><b>Avoiding zombie</b>: a zombie is close, so it stops helping.</li>
+ * </ul>
+ * In the last three modes it behaves like any other {@link Human}:
+ * sheltering, eating and wandering. Patients with a zombie close by are
+ * skipped, so a medic never walks into danger to heal someone.
+ *
+ * <p>The medic itself decides which mode it is in, in one place
+ * ({@link #decideMode(World)}), and each mode carries its own behaviour as a
+ * lambda. The rules are checked in priority order, so "hungry" always wins
+ * over "avoiding zombie", which wins over "healing".
  *
  * <p>Medics get hungry like everyone else, because {@link Human#update(World)}
  * drains energy before calling {@link #behave(World)}. Zombies can still
@@ -17,9 +31,34 @@ import java.util.Comparator;
  *
  * <p>Medics reuse the normal human animations with their own sprites from
  * {@code assets/medic}: a white jacket and trousers, a red shirt and a red
- * first-aid backpack.
+ * first-aid backpack. The current mode is shown above the medic.
  */
 public class Medic extends Human {
+
+    /** What the medic does this tick. Each mode carries its own behaviour. */
+    enum Mode {
+        HEALING("Healing", Medic::treatPatient),
+        STANDING_BY("Standing by", Medic::surviveLikeACivilian),
+        HUNGRY("Hungry", Medic::surviveLikeACivilian),
+        AVOIDING_ZOMBIE("Avoiding zombie", Medic::surviveLikeACivilian);
+
+        private final String label;
+        private final BiConsumer<Medic, World> action;
+
+        Mode(String label, BiConsumer<Medic, World> action) {
+            this.label = label;
+            this.action = action;
+        }
+
+        /** Text shown above the medic, e.g. {@code "Healing"}. */
+        String getLabel() {
+            return label;
+        }
+
+        void act(Medic medic, World world) {
+            action.accept(medic, world);
+        }
+    }
 
     private static final double HEAL_DISTANCE = 20.0;
     private static final double HEAL_AMOUNT = 30.0;
@@ -30,8 +69,12 @@ public class Medic extends Human {
     private static final double DANGER_RADIUS = 100.0;
     private static final double SEARCH_RADIUS = 300.0;
     private static final int HEAL_COOLDOWN_TICKS = 15;
+    private static final int LABEL_OFFSET = 31;
 
     private int cooldown;
+    private Mode mode = Mode.STANDING_BY;
+    // Only set while healing: the patient chosen this tick.
+    private Human patient;
 
     public Medic(double x, double y) {
         super(x, y, "/assets/medic/");
@@ -42,39 +85,58 @@ public class Medic extends Human {
         return cooldown;
     }
 
-    /**
-     * Heals a nearby patient if there is one, the medic is fit enough and no
-     * zombie is close; otherwise behaves like any other human.
-     */
+    /** The mode the medic was in on its last tick. */
+    Mode getMode() {
+        return mode;
+    }
+
+    /** Picks this tick's mode, then lets that mode act. */
     @Override
     protected void behave(World world) {
         if (cooldown > 0) {
             cooldown--;
         }
+        mode = decideMode(world);
+        mode.act(this, world);
+    }
 
-        // A hungry medic, or one with a zombie close by, looks after itself
-        // first, like any other survivor.
-        if (getEnergy() <= ON_DUTY_ENERGY || zombieNear(world, this)) {
-            super.behave(world);
-            return;
+    /**
+     * The only place the medic's mode changes. The rules are checked in
+     * priority order: a hungry medic looks after itself first, then a medic
+     * with a zombie close by, and only then does it look for a patient.
+     */
+    private Mode decideMode(World world) {
+        patient = null;
+        if (getEnergy() <= ON_DUTY_ENERGY) {
+            return Mode.HUNGRY;
         }
-
+        if (zombieNear(world, this)) {
+            return Mode.AVOIDING_ZOMBIE;
+        }
         try {
-            Human patient = findPatient(world);
-
-            // Does nothing if the medic isn't sheltering.
-            leaveBuilding();
-
-            if (distanceTo(patient) > HEAL_DISTANCE) {
-                moveTowards(patient.getX(), patient.getY(), world);
-            }
-            if (distanceTo(patient) <= HEAL_DISTANCE && cooldown == 0) {
-                heal(patient);
-            }
+            patient = findPatient(world);
+            return Mode.HEALING;
         } catch (TargetNotFoundException exception) {
-            // Nobody nearby needs help, so carry on surviving.
-            super.behave(world);
+            return Mode.STANDING_BY;
         }
+    }
+
+    /** Healing mode: go to the chosen patient and heal them when close enough. */
+    private void treatPatient(World world) {
+        // Does nothing if the medic isn't sheltering.
+        leaveBuilding();
+
+        if (distanceTo(patient) > HEAL_DISTANCE) {
+            moveTowards(patient.getX(), patient.getY(), world);
+        }
+        if (distanceTo(patient) <= HEAL_DISTANCE && cooldown == 0) {
+            heal(patient);
+        }
+    }
+
+    /** Every other mode: shelter, eat and wander like an ordinary civilian. */
+    private void surviveLikeACivilian(World world) {
+        super.behave(world);
     }
 
     /**
@@ -109,5 +171,29 @@ public class Medic extends Human {
     private void heal(Human patient) {
         patient.restoreEnergy(HEAL_AMOUNT);
         cooldown = HEAL_COOLDOWN_TICKS;
+    }
+
+    /** Draws the medic, then its current mode above it, like the soldiers' state labels. */
+    @Override
+    public void draw(Graphics2D graphics) {
+        super.draw(graphics);
+        if (isHidden()) {
+            return;
+        }
+
+        Font previousFont = graphics.getFont();
+        Color previousColor = graphics.getColor();
+
+        graphics.setFont(new Font("Arial", Font.BOLD, 10));
+        String label = mode.getLabel();
+        int labelX = (int) getX() - graphics.getFontMetrics().stringWidth(label) / 2;
+        int labelY = (int) getY() - LABEL_OFFSET;
+        graphics.setColor(Color.BLACK);
+        graphics.drawString(label, labelX + 1, labelY + 1);
+        graphics.setColor(new Color(255, 120, 120));
+        graphics.drawString(label, labelX, labelY);
+
+        graphics.setFont(previousFont);
+        graphics.setColor(previousColor);
     }
 }

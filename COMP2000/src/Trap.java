@@ -229,13 +229,13 @@ public class Trap extends Entity {
      * draw a ring instead of crashing the simulation.
      */
     private static Image loadSprite() {
-        URL resource = Trap.class.getResource("/Trap.png");
+        URL resource = Trap.class.getResource("/assets/trap/Trap.png");
         if (resource != null) {
             return new ImageIcon(resource).getImage();
         }
 
         for (String folder : new String[]{"src", "COMP2000/src"}) {
-            File file = new File(folder, "Trap.png");
+            File file = new File(folder, "assets/trap/Trap.png");
             if (file.isFile()) {
                 return new ImageIcon(file.getAbsolutePath()).getImage();
             }

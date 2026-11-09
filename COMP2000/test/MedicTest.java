@@ -12,6 +12,8 @@ public final class MedicTest {
         testStaysOnDutyUntilHungry();
         testSkipsPatientNearZombie();
         testBacksOffWhenZombieIsClose();
+        testModeReflectsWhatTheMedicIsDoing();
+        testHungerWinsOverEverythingElse();
         testRestoreEnergyIsCappedAndValidated();
         System.out.println("MedicTest passed");
     }
@@ -168,6 +170,44 @@ public final class MedicTest {
         medic.update(world);
 
         check(patient.getEnergy() == before, "a medic with a zombie close by stops helping");
+    }
+
+    private static void testModeReflectsWhatTheMedicIsDoing() {
+        World quiet = new World(1000, 750);
+        Medic idle = new Medic(100, 100);
+        quiet.addEntity(idle);
+        idle.update(quiet);
+        check(idle.getMode() == Medic.Mode.STANDING_BY, "nobody needs help, so standing by");
+
+        World ward = new World(1000, 750);
+        Medic busy = new Medic(100, 100);
+        ward.addEntity(busy);
+        ward.addEntity(injured(150, 100, 20));
+        busy.update(ward);
+        check(busy.getMode() == Medic.Mode.HEALING, "an injured civilian nearby, so healing");
+
+        World danger = new World(1000, 750);
+        Medic careful = new Medic(100, 100);
+        danger.addEntity(careful);
+        danger.addEntity(injured(150, 100, 20));
+        danger.addEntity(new Zombie(100, 180));
+        careful.update(danger);
+        check(careful.getMode() == Medic.Mode.AVOIDING_ZOMBIE, "a zombie close by beats a patient");
+        check(Medic.Mode.HEALING.getLabel().equals("Healing"), "modes have readable labels");
+    }
+
+    private static void testHungerWinsOverEverythingElse() {
+        World world = new World(1000, 750);
+        Medic medic = new Medic(100, 100);
+        drainTo(medic, 30);
+        medic.setPosition(100, 100);
+        world.addEntity(medic);
+        world.addEntity(injured(120, 100, 20));
+        world.addEntity(new Zombie(100, 160));
+
+        medic.update(world);
+
+        check(medic.getMode() == Medic.Mode.HUNGRY, "a hungry medic looks after itself first");
     }
 
     private static void testRestoreEnergyIsCappedAndValidated() {

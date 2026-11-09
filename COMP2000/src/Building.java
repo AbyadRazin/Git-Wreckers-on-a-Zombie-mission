@@ -39,13 +39,13 @@ public class Building extends Entity {
 
                 Image loadedImage;
                 try {
-                    URL imageURL = Building.class.getResource("/Building.png");
+                    URL imageURL = Building.class.getResource("/assets/world/Building.png");
                     if (imageURL != null) {
                         loadedImage = ImageIO.read(imageURL);
                     } else {
-                        File sourceAsset = new File("src", "Building.png");
+                        File sourceAsset = new File("src", "assets/world/Building.png");
                         if (!sourceAsset.isFile()) {
-                            sourceAsset = new File("COMP2000/src", "Building.png");
+                            sourceAsset = new File("COMP2000/src", "assets/world/Building.png");
                         }
                         if (!sourceAsset.isFile()) {
                             throw new IOException("Building.png could not be found");

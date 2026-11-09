@@ -22,7 +22,7 @@ public class Human extends Entity {
     private static final int CHARACTER_WIDTH = 38;
     private static final int CHARACTER_HEIGHT = 54;
     private static final int TICKS_PER_WALK_FRAME = 8;
-    private static final String DEFAULT_SPRITE_FOLDER = "/HumanFoodAssets/";
+    private static final String DEFAULT_SPRITE_FOLDER = "/assets/human/";
 
     private final Random random = new Random();
     private double energy;
@@ -48,7 +48,7 @@ public class Human extends Entity {
 
     /**
      * Creates a human drawn with the sprites in {@code spriteFolder}, which
-     * must hold the same set of files as {@code HumanFoodAssets}. This lets a
+     * must hold the same set of files as {@code assets/human}. This lets a
      * subclass such as {@link Medic} have its own look while reusing all of
      * the walking animation code.
      */

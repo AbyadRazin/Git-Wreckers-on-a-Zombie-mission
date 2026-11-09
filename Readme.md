@@ -37,6 +37,7 @@ Use the agreed division:
 | Zombie | Infection, chasing, and target selection | Nicholas Fang | |
 | Military/MovementBehaviour | Patrol, shooting, and strategy pattern | Neev Patel | 48521558 |
 | Building/SimPanel | Occupancy, rendering, and statistics | | |
+| Medic/Trap | Healing civilians, traps that catch zombies, and trap events | Abyad Razin | 61216542 |
 
 ## Rules 
 - Zombies chase nearby humans.
@@ -48,12 +49,12 @@ Use the agreed division:
 
 ## Requirements
 - Git
-- Java Development Kit (JDK 11 or later)
+- Java Development Kit (JDK 17 or later)
 
 ### How to run
 1. Clone this project and move to this project
 ```bash
-git clone https://github.com/ShahriarHasan001533/Git-Wreckers-on-a-Zombie-mission
+git clone https://github.com/AbyadRazin/Git-Wreckers-on-a-Zombie-mission
 
 cd Git-Wreckers-on-a-Zombie-mission
 cd COMP2000
@@ -77,7 +78,39 @@ java -version
 javac -version
 ```
 
+## My additions (Abyad Razin, Person F)
+
+This fork is my individual submission. On top of the team's simulation I built the Medic and the Trap, and then measured whether they actually help.
+
+| Part | What it does | Main ideas |
+|---|---|---|
+| `Medic` | Heals the most urgent visible civilian nearby, skips patients with a zombie close by, and shows its current mode above its head | Template Method (`Human.update()` fixes the energy step, `behave()` is overridden), State pattern (`Medic.Mode` enum, each mode carries its behaviour as a lambda), streams to choose the patient |
+| `Trap` | Catches zombies that walk over it, with limited uses; starting traps go at random spots in front of the building doors | Streams, exceptions for invalid traps and when there's no free spot |
+| Trap events | Every catch is announced to listeners: a HUD counter (`TrapReport`), a blast effect (`TrapBlasts`), and the experiment | Observer pattern (`TrapListener`) |
+| Place-a-trap button | Press the button, then click the map to place up to 3 extra traps | `TrapPlacer`, a lambda callback for the map click |
+| `Experiment` | Runs the simulation hundreds of times without a window to compare no additions, traps only, medics only, and both, on the same starting layouts | Parallel stream, custom `Collector` with a standard error, `partitioningBy`, a lambda per scenario instead of a class per scenario |
+| `ZombieHeatmap` | Records where zombies spend their time and draws it as a picture | Parallel runs, each with its own grid, merged by a custom `Collector` |
+| `RaceConditionDemo` | Shows what goes wrong if parallel runs share one counter, against an atomic counter and one counter per run | Race conditions, thread confinement |
+
+Run them after compiling (step 2 above), from the `COMP2000` folder:
+
+```bash
+java -cp "out:src" Experiment 200 1500        # runs per scenario, ticks per run
+java -cp "out:src" ZombieHeatmap 80 1500 heatmap.png
+java -cp "out:src" RaceConditionDemo
+```
+
+The heatmap is what moved the traps. Zombies crowd around the building doors because survivors run there to shelter, while my original fixed traps sat in quiet gaps:
+
+| Before: fixed traps (cyan rings) | After: traps start at the doors (cyan dots) |
+|---|---|
+| ![Heatmap before](docs/images/heatmap-before.png) | ![Heatmap after](docs/images/heatmap-after.png) |
+
+Latest experiment results, with the exact command to reproduce them: [docs/results/experiment-2026-11-09.txt](docs/results/experiment-2026-11-09.txt). With medics and traps together, 10.23 civilians survive on average against 8.71 with neither.
+
+My tests: `MedicTest`, `TrapPlacerTest`, `TrapEventsTest`, `TrapPlacementTest`, `ExperimentTest`, `RaceConditionDemoTest`, `ZombieHeatmapTest`.
+
 ## References
 - COMP2000 course materials
-- Image assets are the PNG files included in this repository under `COMP2000/src` and `COMP2000/src/HumanFoodAssets`.
+- Image assets are the PNG files included in this repository under `COMP2000/src/assets`, one folder per kind of thing (`world`, `human`, `medic`, `military`, `zombie`, `food`, `trap`).
 - The simulation loads these assets from the classpath; no external image source or attribution is recorded in the submitted project.

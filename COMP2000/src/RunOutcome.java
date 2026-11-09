@@ -50,8 +50,12 @@ public final class RunOutcome {
         return trapCatches;
     }
 
-    /** The outbreak was contained if no zombie is left. */
+    /**
+     * The outbreak was contained if at most one zombie is left. A new zombie
+     * walks in from the edge every 300 ticks, so one zombie is the normal
+     * background level; anything more means earlier zombies are still around.
+     */
     public boolean outbreakContained() {
-        return zombies == 0;
+        return zombies <= 1;
     }
 }

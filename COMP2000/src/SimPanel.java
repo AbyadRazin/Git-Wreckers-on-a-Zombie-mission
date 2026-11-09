@@ -45,14 +45,14 @@ public class SimPanel extends JPanel implements WorldObserver {
                 new Dimension(world.getWidth(), world.getHeight())
         );
         URL backgroundURL =
-                SimPanel.class.getResource("/Background.png");
+                SimPanel.class.getResource("/assets/world/Background.png");
 
         if (backgroundURL != null) {
             backgroundImage = new ImageIcon(backgroundURL).getImage();
         } else {
-            File sourceAsset = new File("src", "Background.png");
+            File sourceAsset = new File("src", "assets/world/Background.png");
             if (!sourceAsset.isFile()) {
-                sourceAsset = new File("COMP2000/src", "Background.png");
+                sourceAsset = new File("COMP2000/src", "assets/world/Background.png");
             }
             if (!sourceAsset.isFile()) {
                 throw new IllegalStateException(

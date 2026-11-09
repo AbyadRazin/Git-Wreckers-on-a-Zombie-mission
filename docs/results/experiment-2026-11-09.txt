@@ -1,0 +1,37 @@
+Experiment results, 9 November 2026
+===================================
+
+Code: this fork, commit db63b8f ("Add a heatmap of where zombies spend their time")
+Command (from the COMP2000 folder, after javac -d out src/*.java):
+    java -cp "out:src" Experiment 200 1500
+Java: openjdk version "21.0.12.1" 2026-08-18
+Run time: about 7 minutes on 2 CPU cores.
+
+200 paired runs per scenario, 1500 ticks each, layout seed 20261109, 2 CPU cores
+
+Scenario                    Avg survivors  Avg zombies  Trap catches       Contained
+No medics, no traps          8.71 +/- 0.15         2.53          0.00             50%   (105.6s)
+Traps only                   8.93 +/- 0.13         2.06          0.81             60%   (98.9s)
+Medics only                  9.67 +/- 0.20         2.39          0.00             53%   (106.8s)
+Medics and traps            10.23 +/- 0.18         2.20          0.92             55%   (99.2s)
+
+Contained = at most one zombie left (a new zombie walks in every 300 ticks).
+
+Traps only             traps caught something:  85 runs, 8.51 survivors | caught nothing: 115 runs, 9.24 survivors
+Medics and traps       traps caught something:  88 runs, 9.53 survivors | caught nothing: 112 runs, 10.77 survivors
+
+What the numbers say
+--------------------
+- Every scenario's run number i starts from the same layout, so the four
+  rows are compared on equal starting positions. "+/-" is one standard
+  error: two averages only really differ if they are several of these apart.
+- Medics clearly help: 9.67 vs 8.71 survivors, about 4 standard errors apart.
+- Traps on their own barely change survivors (8.93 vs 8.71) but do leave
+  fewer zombies at the end (2.06 vs 2.53).
+- Medics and traps together are the best setup: 10.23 survivors, about
+  1.5 more than with neither, more than 6 standard errors apart.
+- The split by trap activity is a correlation, not a cause: runs where
+  traps caught something had FEWER survivors. Traps catch more when there
+  are more zombies around, and more zombies means fewer survivors. The
+  fair test of whether traps help is the paired comparison above, not
+  this split.

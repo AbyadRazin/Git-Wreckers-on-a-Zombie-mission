@@ -421,19 +421,19 @@ public class Military extends Human {
         private static Sprites shared;
 
         final Image[] frontWalk = {
-                loadImage("/MilitaryFrontWalk1.png"),
-                loadImage("/MilitaryFrontWalk2.png"),
-                loadImage("/MilitaryFrontWalk3.png"),
-                loadImage("/MilitaryFrontWalk4.png")
+                loadImage("/assets/military/MilitaryFrontWalk1.png"),
+                loadImage("/assets/military/MilitaryFrontWalk2.png"),
+                loadImage("/assets/military/MilitaryFrontWalk3.png"),
+                loadImage("/assets/military/MilitaryFrontWalk4.png")
         };
         final Image[] sideWalk = {
-                loadImage("/MilitaryWalk1.png"),
-                loadImage("/MilitaryWalk2.png"),
-                loadImage("/MilitaryWalk3.png")
+                loadImage("/assets/military/MilitaryWalk1.png"),
+                loadImage("/assets/military/MilitaryWalk2.png"),
+                loadImage("/assets/military/MilitaryWalk3.png")
         };
-        final Image frontIdle = loadImage("/MilitaryFrontIdle.png");
-        final Image sideIdle = loadImage("/MilitarySideIdle.png");
-        final Image back = loadImage("/MilitaryBack.png");
+        final Image frontIdle = loadImage("/assets/military/MilitaryFrontIdle.png");
+        final Image sideIdle = loadImage("/assets/military/MilitarySideIdle.png");
+        final Image back = loadImage("/assets/military/MilitaryBack.png");
 
         /** A missing image throws, and nothing is cached, so the next call retries. */
         static synchronized Sprites shared() {

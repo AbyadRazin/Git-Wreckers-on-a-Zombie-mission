@@ -56,12 +56,12 @@ public class Food extends Entity {
     private String selectImagePath(double x, double y) {
         int selection = Math.floorMod((int) Math.round(x * 31 + y * 17), 3);
         if (selection == 0) {
-            return "/HumanFoodAssets/FoodApple.png";
+            return "/assets/food/FoodApple.png";
         }
         if (selection == 1) {
-            return "/HumanFoodAssets/FoodPizza.png";
+            return "/assets/food/FoodPizza.png";
         }
-        return "/HumanFoodAssets/FoodBurger.png";
+        return "/assets/food/FoodBurger.png";
     }
 
     private Image loadImage(String imagePath) {

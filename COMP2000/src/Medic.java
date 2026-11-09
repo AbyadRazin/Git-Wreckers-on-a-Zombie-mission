@@ -16,7 +16,7 @@ import java.util.Comparator;
  * catch and infect them.
  *
  * <p>Medics reuse the normal human animations with their own sprites from
- * {@code MedicAssets}: a white jacket and trousers, a red shirt and a red
+ * {@code assets/medic}: a white jacket and trousers, a red shirt and a red
  * first-aid backpack.
  */
 public class Medic extends Human {
@@ -34,7 +34,7 @@ public class Medic extends Human {
     private int cooldown;
 
     public Medic(double x, double y) {
-        super(x, y, "/MedicAssets/");
+        super(x, y, "/assets/medic/");
     }
 
     /** Ticks left before this medic can heal again (0 means ready). */

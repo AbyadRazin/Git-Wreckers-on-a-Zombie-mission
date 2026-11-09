@@ -263,7 +263,7 @@ public class Zombie extends Entity {
         try {
             URL resource =
                     Zombie.class.getResource(
-                            "/ZombieSprites.png"
+                            "/assets/zombie/ZombieSprites.png"
                     );
 
             if (resource != null) {
@@ -271,12 +271,12 @@ public class Zombie extends Entity {
             }
 
             File sourceFile =
-                    new File("src", "ZombieSprites.png");
+                    new File("src", "assets/zombie/ZombieSprites.png");
 
             if (!sourceFile.isFile()) {
                 sourceFile = new File(
                         "COMP2000/src",
-                        "ZombieSprites.png"
+                        "assets/zombie/ZombieSprites.png"
                 );
             }
 
